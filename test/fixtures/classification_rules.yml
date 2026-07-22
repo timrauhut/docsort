@@ -1,0 +1,6 @@
+invoice_filename:
+  name: Filename invoice
+  pattern: invoice
+  category: invoices
+  priority: 10
+  active: true

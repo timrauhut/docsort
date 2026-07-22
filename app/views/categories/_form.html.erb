@@ -1,0 +1,53 @@
+<%= form_with model: category, class: "form-card field-stack" do |f| %>
+  <% if category.errors.any? %>
+    <div class="flash flash-alert"><%= category.errors.full_messages.to_sentence %></div>
+  <% end %>
+
+  <div>
+    <%= f.label :name, class: "form-label" %>
+    <%= f.text_field :name, placeholder: "Invoices" %>
+  </div>
+
+  <div class="field-row field-row-2">
+    <div>
+      <%= f.label :slug, class: "form-label" %>
+      <%= f.text_field :slug, placeholder: "invoices", class: "mono" %>
+    </div>
+    <div>
+      <%= f.label :directory_path, "Directory path", class: "form-label" %>
+      <%= f.text_field :directory_path, placeholder: "finance/invoices", class: "mono" %>
+    </div>
+  </div>
+
+  <div>
+    <%= f.label :description, class: "form-label" %>
+    <%= f.text_area :description, rows: 3, placeholder: "Bills, invoices, payment requests…" %>
+  </div>
+
+  <div>
+    <%= f.label :keywords, "Keywords (comma-separated, offline fallback)", class: "form-label" %>
+    <%= f.text_area :keywords, rows: 2, placeholder: "invoice, receipt, payment, bill" %>
+  </div>
+
+  <div class="field-row field-row-3">
+    <div>
+      <%= f.label :color, class: "form-label" %>
+      <%= f.color_field :color %>
+    </div>
+    <div>
+      <%= f.label :position, class: "form-label" %>
+      <%= f.number_field :position %>
+    </div>
+    <div style="display:flex;align-items:flex-end;padding-bottom:0.35rem">
+      <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:var(--ink-soft)">
+        <%= f.check_box :auto_create %>
+        Auto-create directory
+      </label>
+    </div>
+  </div>
+
+  <div class="actions-row">
+    <%= f.submit class: "btn btn-primary" %>
+    <%= link_to "Cancel", categories_path, class: "btn btn-ghost" %>
+  </div>
+<% end %>

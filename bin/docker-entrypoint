@@ -1,0 +1,40 @@
+#!/bin/bash -e
+
+# Prepare storage directories (volume may be empty on first boot)
+mkdir -p "${DOCSORT_SORTED_ROOT:-/rails/storage/sorted}" \
+         "${DOCSORT_INBOX_ROOT:-/rails/storage/inbox}" \
+         /rails/storage \
+         /rails/tmp/pids \
+         /rails/log
+
+# Thruster starts as: ./bin/thrust ./bin/rails server
+# Also handle bare rails server.
+run_db_prepare=false
+case "${1:-}" in
+  ./bin/thrust|bin/thrust|/rails/bin/thrust)
+    run_db_prepare=true
+    ;;
+  ./bin/rails|bin/rails)
+    if [ "${2:-}" = "server" ]; then
+      run_db_prepare=true
+    fi
+    ;;
+esac
+
+if [ "$run_db_prepare" = true ]; then
+  echo "[entrypoint] db:prepare…"
+  ./bin/rails db:prepare
+
+  if [ "${DOCSORT_AUTO_SEED:-true}" = "true" ]; then
+    ./bin/rails runner '
+      if Category.count.zero?
+        puts "[entrypoint] No categories — loading db/seeds.rb"
+        load Rails.root.join("db/seeds.rb")
+      else
+        puts "[entrypoint] Categories present (#{Category.count}) — skip seed"
+      end
+    '
+  fi
+fi
+
+exec "${@}"

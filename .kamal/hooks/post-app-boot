@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "==> [post-app-boot] App containers are up (version=${KAMAL_VERSION:-?})"

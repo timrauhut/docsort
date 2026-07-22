@@ -1,0 +1,32 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      RAILS_ENV: development
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: llama3.2
+      WEBDAV_USERNAME: docsort
+      WEBDAV_PASSWORD: upload123
+      DOCSORT_SORTED_ROOT: /rails/storage/sorted
+      DOCSORT_INBOX_ROOT: /rails/storage/inbox
+    volumes:
+      - .:/rails
+      - sorted_data:/rails/storage/sorted
+      - inbox_data:/rails/storage/inbox
+    depends_on:
+      - ollama
+    command: bash -c "bundle install && bin/rails db:prepare db:seed && bin/rails server -b 0.0.0.0 -p 3000"
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  sorted_data:
+  inbox_data:
+  ollama_data:

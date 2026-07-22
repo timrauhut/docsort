@@ -1,0 +1,33 @@
+<% if documents.empty? %>
+  <div class="empty-state" style="padding:1.25rem">No matches</div>
+<% else %>
+  <ul style="max-height:20rem;overflow-y:auto;margin:0;padding:0.35rem 0;list-style:none" role="listbox" id="document-typeahead-list">
+    <% documents.each do |doc| %>
+      <li role="presentation">
+        <%= link_to document_path(doc),
+              id: "typeahead-option-#{doc.id}",
+              role: "option",
+              aria: { selected: false },
+              data: { typeahead_item: true },
+              class: "typeahead-item items-start gap-3 px-3 py-2.5 text-left" do %>
+          <div class="min-w-0 flex-1">
+            <p style="margin:0;font-size:0.9rem;font-weight:600;color:var(--ink)" class="truncate"><%= doc.display_title %></p>
+            <p style="margin:0.15rem 0 0;font-size:0.75rem;color:var(--ink-faint)" class="truncate"><%= doc.original_filename %></p>
+            <% if doc.summary.present? %>
+              <p style="margin:0.25rem 0 0;font-size:0.72rem;color:var(--ink-faint)" class="line-clamp-1"><%= doc.summary %></p>
+            <% end %>
+          </div>
+          <div class="flex shrink-0 flex-col items-end gap-1">
+            <% if doc.category %>
+              <span class="pill pill-cat" style="background:<%= doc.category.color %>"><%= doc.category.name %></span>
+            <% end %>
+            <span class="<%= doc.status_badge_class %>"><%= doc.status %></span>
+          </div>
+        <% end %>
+      </li>
+    <% end %>
+  </ul>
+  <div style="border-top:1px solid var(--line);padding:0.5rem 0.85rem;font-size:0.68rem;color:var(--ink-faint)">
+    ↑↓ navigate · Enter open · Esc close
+  </div>
+<% end %>

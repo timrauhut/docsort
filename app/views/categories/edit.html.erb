@@ -1,0 +1,16 @@
+<% content_for :title, "Edit category · DocSort" %>
+
+<div class="narrow">
+  <div class="page-hero">
+    <div>
+      <p class="eyebrow">Edit</p>
+      <h1><%= @category.name %></h1>
+    </div>
+  </div>
+  <%= render "form", category: @category %>
+  <div style="margin-top:1.25rem">
+    <%= button_to "Delete category", category_path(@category), method: :delete,
+          data: { turbo_confirm: "Delete this category?" },
+          class: "btn btn-danger" %>
+  </div>
+</div>

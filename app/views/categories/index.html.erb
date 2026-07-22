@@ -1,0 +1,38 @@
+<% content_for :title, "Categories · DocSort" %>
+
+<div class="page-hero">
+  <div>
+    <p class="eyebrow">Structure</p>
+    <h1>Categories</h1>
+    <p class="lede">Each category maps to an auto-created folder under <span class="mono">storage/sorted/</span>.</p>
+  </div>
+  <%= link_to "New category", new_category_path, class: "btn btn-primary" %>
+</div>
+
+<div class="cat-grid">
+  <% @categories.each do |category| %>
+    <article class="cat-card">
+      <span class="cat-card__stripe" style="background:<%= category.color %>"></span>
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <%= category_swatch(category, size: 12) %>
+          <h2><%= link_to category.name, category %></h2>
+        </div>
+        <span class="pill pill-soft tabular-nums"><%= category.documents.size %></span>
+      </div>
+      <p class="cat-card__desc"><%= category.description.presence || "No description yet." %></p>
+      <p class="cat-card__path"><%= category.directory_path %>/</p>
+      <% if category.keyword_list.any? %>
+        <div style="margin-top:0.75rem">
+          <% category.keyword_list.first(6).each do |kw| %>
+            <span class="kw"><%= kw %></span>
+          <% end %>
+        </div>
+      <% end %>
+      <div class="actions-row" style="margin-top:1rem">
+        <%= link_to "Open", category, class: "btn btn-ghost btn-sm" %>
+        <%= link_to "Edit", edit_category_path(category), class: "btn btn-ghost btn-sm" %>
+      </div>
+    </article>
+  <% end %>
+</div>

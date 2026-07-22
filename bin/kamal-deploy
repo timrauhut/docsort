@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Ship a new DocSort release (build + push + rolling deploy).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+export PATH="/opt/homebrew/opt/ruby/bin:/opt/homebrew/lib/ruby/gems/4.0.0/bin:${PATH:-}"
+
+if [[ -z "${WEBDAV_PASSWORD:-}" ]]; then
+  echo "ERROR: export WEBDAV_PASSWORD='…' first" >&2
+  exit 1
+fi
+
+echo "==> Deploying DocSort with Kamal…"
+bin/kamal deploy "$@"
+echo "==> Deploy complete."

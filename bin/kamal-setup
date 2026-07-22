@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# First-time server bootstrap: Docker, proxy, accessories, build, deploy.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+export PATH="/opt/homebrew/opt/ruby/bin:/opt/homebrew/lib/ruby/gems/4.0.0/bin:${PATH:-}"
+
+echo "==> DocSort Kamal setup"
+echo "    Ensure config/deploy.yml server IPs and registry are set."
+echo "    Ensure WEBDAV_PASSWORD is exported."
+echo ""
+
+if [[ -z "${WEBDAV_PASSWORD:-}" ]]; then
+  echo "ERROR: export WEBDAV_PASSWORD='…' first" >&2
+  exit 1
+fi
+
+if [[ ! -f config/master.key ]]; then
+  echo "ERROR: config/master.key missing" >&2
+  exit 1
+fi
+
+bin/kamal setup "$@"
+
+echo ""
+echo "==> Bootstrapping Ollama model (if accessory is up)…"
+bin/kamal accessory boot ollama 2>/dev/null || true
+sleep 2
+# Default model from deploy.yml aliases; override with OLLAMA_PULL_MODEL
+MODEL="${OLLAMA_PULL_MODEL:-llama3.2}"
+echo "    Pulling model: ${MODEL}"
+bin/kamal accessory exec ollama -- "ollama pull ${MODEL}" || {
+  echo "WARNING: model pull failed — run later: bin/kamal accessory exec ollama -- 'ollama pull ${MODEL}'" >&2
+}
+
+echo ""
+echo "==> Setup finished. Visit the server URL and check /up"

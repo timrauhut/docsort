@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title><%= content_for(:title) || "DocSort" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="DocSort">
+    <meta name="theme-color" content="#1a1612">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <%= yield :head %>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:opsz,wght@9..144,500;9..144,550;9..144,600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <%= stylesheet_link_tag "tailwind", "application", "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body class="docsort-body">
+    <div class="docsort-shell">
+      <header class="site-header">
+        <div class="site-header__inner">
+          <%= link_to root_path, class: "brand" do %>
+            <%= image_tag "/icon.svg", alt: "DocSort", class: "brand__logo", width: 40, height: 40 %>
+            <span>
+              <span class="brand__title">DocSort</span>
+              <span class="brand__tag">Local archive · private AI</span>
+            </span>
+          <% end %>
+
+          <div class="header-actions">
+            <nav class="nav-pills" aria-label="Primary">
+              <%= nav_link "Home", root_path %>
+              <%= nav_link "Documents", documents_path %>
+              <%= nav_link "Categories", categories_path %>
+            </nav>
+            <%= link_to new_document_path, class: "btn btn-upload", "aria-label": "Upload documents" do %>
+              <span class="btn-upload__icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 16V4"/><path d="m6 10 6-6 6 6"/><path d="M4 20h16"/>
+                </svg>
+              </span>
+              <span class="btn-upload__label">Upload</span>
+            <% end %>
+          </div>
+        </div>
+      </header>
+
+      <main class="site-main">
+        <% flash.each do |type, message| %>
+          <div class="<%= flash_class(type) %>" role="status"><%= message %></div>
+        <% end %>
+
+        <%= yield %>
+      </main>
+
+      <%# Floating upload — always visible on smaller screens / long pages %>
+      <%= link_to new_document_path, class: "fab-upload", "aria-label": "Upload documents" do %>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 16V4"/><path d="m6 10 6-6 6 6"/><path d="M4 20h16"/>
+        </svg>
+        <span>Upload</span>
+      <% end %>
+
+      <footer class="site-footer">
+        <div class="site-footer__inner">
+          <span>
+            WebDAV <code>/webdav</code>
+            · Ollama classifies on your machine
+          </span>
+          <span>Sorted into <code>storage/sorted</code></span>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>
