@@ -1,5 +1,5 @@
 # Ensures category directories exist and places a sorted copy of the document
-# under storage/sorted/<category_path>[/<issuer_slug>]/<filename>.
+# under storage/sorted/<username>/<category_path>[/<issuer_slug>]/<filename>.
 class DocumentOrganizer
   def initialize(document)
     @document = document
@@ -9,6 +9,7 @@ class DocumentOrganizer
     category = @document.category
     return unless category
     return unless @document.file.attached?
+    return unless @document.user
 
     dir = target_directory(category)
     FileUtils.mkdir_p(dir)
@@ -30,7 +31,7 @@ class DocumentOrganizer
   private
 
   def target_directory(category)
-    base = category.absolute_directory
+    base = File.join(@document.user.sorted_root, category.directory_path)
     # Nest under issuer when we have one and category is not already an issuer-* folder
     if @document.issuer.present? && !category.slug.to_s.start_with?("issuer-")
       File.join(base, @document.issuer.parameterize)

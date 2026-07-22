@@ -1,14 +1,16 @@
 class DashboardController < ApplicationController
   def show
+    scope = current_user.documents
     @stats = {
-      total: Document.count,
-      pending: Document.pending.count,
-      classified: Document.classified.count,
-      failed: Document.failed.count,
+      total: scope.count,
+      pending: scope.pending.count,
+      classified: scope.classified.count,
+      failed: scope.failed.count,
       categories: Category.count
     }
-    @recent = Document.includes(:category).recent.limit(12)
-    @categories = Category.ordered.includes(:documents)
+    @recent = scope.includes(:category).recent.limit(12)
+    @categories = Category.ordered
+    @category_counts = scope.group(:category_id).count
     @ollama = ollama_status
   end
 

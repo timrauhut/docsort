@@ -1,0 +1,29 @@
+<% content_for :title, "Users · DocSort" %>
+
+<div class="page-header">
+  <div>
+    <p class="eyebrow">Admin</p>
+    <h1 class="display" style="font-size:1.6rem;margin:0.2rem 0 0">Users</h1>
+    <p class="summary-body">Each person has their own documents, inbox, and sorted folders. Web UI and WebDAV use the same password.</p>
+  </div>
+  <%= link_to "Add user", new_user_path, class: "btn btn-upload" %>
+</div>
+
+<section class="card card-flush">
+  <% @users.each do |user| %>
+    <div class="list-row">
+      <div class="min-w-0">
+        <span class="font-semibold"><%= user.username %></span>
+        <% if user.admin? %><span class="pill pill-soft" style="margin-left:0.4rem">admin</span><% end %>
+        <p class="list-meta"><%= pluralize(user.documents.count, "document") %></p>
+      </div>
+      <div class="flex gap-2 shrink-0">
+        <%= link_to "Edit", edit_user_path(user), class: "card-link" %>
+        <% unless user == current_user %>
+          <%= button_to "Delete", user_path(user), method: :delete, class: "card-link",
+                form: { data: { turbo_confirm: "Delete user “#{user.username}” and all their documents?" } } %>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</section>

@@ -1,10 +1,12 @@
 # Minimal WebDAV endpoint for drag-and-drop / Finder / curl uploads.
-# Uploads land as Documents and are classified + sorted automatically.
+# Auth: same username/password as the web UI (User accounts).
+# Each user has an isolated inbox under storage/inbox/<username>/.
 class WebdavController < ApplicationController
   include ActionController::HttpAuthentication::Basic::ControllerMethods
 
+  skip_before_action :require_login
   skip_before_action :verify_authenticity_token, raise: false
-  before_action :authenticate
+  before_action :authenticate_webdav_user
   before_action :set_paths
 
   def handle
@@ -25,26 +27,24 @@ class WebdavController < ApplicationController
 
   private
 
-  def authenticate
+  def authenticate_webdav_user
     authenticate_or_request_with_http_basic("DocSort WebDAV") do |username, password|
-      expected_user = Rails.application.config.x.webdav.username
-      expected_pass = Rails.application.config.x.webdav.password
-      secure_equals?(username, expected_user) && secure_equals?(password, expected_pass)
+      user = User.authenticate(username, password)
+      if user
+        @webdav_user = user
+        user.ensure_storage!
+        true
+      else
+        false
+      end
     end
   end
 
-  def secure_equals?(actual, expected)
-    ActiveSupport::SecurityUtils.secure_compare(
-      Digest::SHA256.hexdigest(actual.to_s),
-      Digest::SHA256.hexdigest(expected.to_s)
-    )
-  end
-
-
-
   def set_paths
+    return if performed?
+
     relative = params[:path].to_s
-    @upload_root = Pathname.new(Rails.application.config.x.inbox_root)
+    @upload_root = Pathname.new(@webdav_user.inbox_root)
     FileUtils.mkdir_p(@upload_root)
 
     candidate = @upload_root.join(relative).cleanpath
@@ -80,19 +80,19 @@ class WebdavController < ApplicationController
       file.write(body.respond_to?(:read) ? body.read : body.to_s)
     end
 
-    # Ingest into DocSort (skip if directory marker or zero-byte collection)
     if @file_path.file? && @file_path.size.positive?
       File.open(@file_path, "rb") do |io|
         DocumentIngestor.new(
           io: io,
           filename: @file_path.basename.to_s,
           source: "webdav",
-          content_type: request.media_type
+          content_type: request.media_type,
+          user: @webdav_user
         ).call
       end
     end
 
-    Rails.logger.info("WebDAV PUT #{@file_path} (#{@file_path.size} bytes)")
+    Rails.logger.info("WebDAV PUT user=#{@webdav_user.username} path=#{@file_path} (#{@file_path.size} bytes)")
     head :created
   rescue StandardError => e
     Rails.logger.error("WebDAV PUT failed: #{e.message}")
@@ -180,8 +180,8 @@ class WebdavController < ApplicationController
       <!DOCTYPE html>
       <html><head><title>WebDAV inbox /#{ERB::Util.html_escape(path)}</title></head>
       <body>
-        <h1>DocSort WebDAV inbox /#{ERB::Util.html_escape(path)}</h1>
-        <p>Files uploaded here are classified and sorted automatically.</p>
+        <h1>DocSort WebDAV — #{ERB::Util.html_escape(@webdav_user.username)} /#{ERB::Util.html_escape(path)}</h1>
+        <p>Files uploaded here are classified and sorted into your private archive.</p>
         <ul>#{rows.join}</ul>
       </body></html>
     HTML

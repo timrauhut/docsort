@@ -72,9 +72,7 @@ ollama serve</pre>
     <h2 class="display" style="font-size:1.2rem;margin:0.35rem 0 0">WebDAV inbox</h2>
     <p class="summary-body">
       Mount as a network drive from Finder, scanners, or your phone.
-      Credentials: <span class="mono" style="background:var(--paper);padding:0.1rem 0.35rem;border-radius:0.3rem">docsort</span>
-      /
-      <span class="mono" style="background:var(--paper);padding:0.1rem 0.35rem;border-radius:0.3rem">upload123</span>
+      Use your <strong>sign-in username and password</strong> (not a shared account).
     </p>
     <div class="webdav-insets">
       <div class="inset">
@@ -82,8 +80,12 @@ ollama serve</pre>
         <p class="mono" style="margin:0;font-size:0.75rem;word-break:break-all;color:var(--ink)"><%= request.base_url %>/webdav</p>
       </div>
       <div class="inset">
+        <p class="inset__label">User</p>
+        <p class="mono" style="margin:0;font-size:0.75rem;color:var(--ink)"><%= current_user.username %></p>
+      </div>
+      <div class="inset">
         <p class="inset__label">curl</p>
-        <pre style="margin:0;font-family:var(--font-mono);font-size:0.68rem;color:var(--ink-soft);white-space:pre-wrap">curl -T file.pdf -u docsort:upload123 \
+        <pre style="margin:0;font-family:var(--font-mono);font-size:0.68rem;color:var(--ink-soft);white-space:pre-wrap">curl -T file.pdf -u <%= current_user.username %>:YOUR_PASSWORD \
   <%= request.base_url %>/webdav/file.pdf</pre>
       </div>
     </div>
@@ -131,7 +133,7 @@ ollama serve</pre>
             <p class="list-meta mono truncate"><%= category.directory_path %>/</p>
           </div>
         </div>
-        <span class="pill pill-soft tabular-nums"><%= category.documents.size %></span>
+        <span class="pill pill-soft tabular-nums"><%= @category_counts[category.id] || 0 %></span>
       </div>
     <% end %>
   </section>

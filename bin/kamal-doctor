@@ -64,11 +64,11 @@ for h in .kamal/hooks/*; do
   fi
 done
 
-# Secrets env
-if [[ -n "${WEBDAV_PASSWORD:-}" ]]; then
-  pass "WEBDAV_PASSWORD is set"
+# Secrets env (bootstrap admin password for multi-user seed)
+if [[ -n "${DOCSORT_ADMIN_PASSWORD:-${WEBDAV_PASSWORD:-}}" ]]; then
+  pass "DOCSORT_ADMIN_PASSWORD (or WEBDAV_PASSWORD) is set"
 else
-  bad "WEBDAV_PASSWORD not set (export before deploy)"
+  bad "DOCSORT_ADMIN_PASSWORD not set (export before deploy)"
 fi
 
 # deploy.yml placeholders

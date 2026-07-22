@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_21_152403) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_22_134521) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -86,15 +86,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_21_152403) do
     t.text "tags"
     t.string "title"
     t.datetime "updated_at", null: false
+    t.integer "user_id"
     t.index ["category_id"], name: "index_documents_on_category_id"
     t.index ["issuer"], name: "index_documents_on_issuer"
     t.index ["original_filename"], name: "index_documents_on_original_filename"
     t.index ["source"], name: "index_documents_on_source"
     t.index ["status"], name: "index_documents_on_status"
+    t.index ["user_id"], name: "index_documents_on_user_id"
+  end
+
+  create_table "users", force: :cascade do |t|
+    t.boolean "admin", default: false, null: false
+    t.datetime "created_at", null: false
+    t.string "password_digest", null: false
+    t.datetime "updated_at", null: false
+    t.string "username", null: false
+    t.index ["username"], name: "index_users_on_username", unique: true
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "classification_rules", "categories"
   add_foreign_key "documents", "categories"
+  add_foreign_key "documents", "users"
 end

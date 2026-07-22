@@ -4,7 +4,7 @@
   <div>
     <p class="eyebrow">Structure</p>
     <h1>Categories</h1>
-    <p class="lede">Each category maps to an auto-created folder under <span class="mono">storage/sorted/</span>.</p>
+    <p class="lede">Shared categories map to folders under <span class="mono">storage/sorted/<%= current_user.username %>/</span>.</p>
   </div>
   <%= link_to "New category", new_category_path, class: "btn btn-primary" %>
 </div>
@@ -18,7 +18,7 @@
           <%= category_swatch(category, size: 12) %>
           <h2><%= link_to category.name, category %></h2>
         </div>
-        <span class="pill pill-soft tabular-nums"><%= category.documents.size %></span>
+        <span class="pill pill-soft tabular-nums"><%= @document_counts[category.id] || 0 %></span>
       </div>
       <p class="cat-card__desc"><%= category.description.presence || "No description yet." %></p>
       <p class="cat-card__path"><%= category.directory_path %>/</p>

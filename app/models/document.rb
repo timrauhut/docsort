@@ -2,6 +2,7 @@ class Document < ApplicationRecord
   STATUSES = %w[pending processing classified failed unsorted].freeze
   SOURCES = %w[web webdav api].freeze
 
+  belongs_to :user
   belongs_to :category, optional: true
   has_one_attached :file
 
@@ -13,6 +14,7 @@ class Document < ApplicationRecord
   scope :pending, -> { where(status: %w[pending processing]) }
   scope :classified, -> { where(status: "classified") }
   scope :failed, -> { where(status: "failed") }
+  scope :for_user, ->(user) { where(user_id: user.id) }
   scope :by_category, ->(category_id) { where(category_id: category_id) if category_id.present? }
   scope :search, lambda { |query|
     return all if query.blank?

@@ -8,6 +8,7 @@ class DocumentClassifierTest < ActiveSupport::TestCase
 
   test "rule match classifies invoice by filename" do
     document = Document.create!(
+      user: users(:admin),
       original_filename: "acme-invoice-42.txt",
       status: "pending",
       source: "web",
@@ -25,6 +26,7 @@ class DocumentClassifierTest < ActiveSupport::TestCase
 
   test "keyword fallback classifies resume content" do
     document = Document.create!(
+      user: users(:admin),
       original_filename: "profile.txt",
       status: "pending",
       source: "web",

@@ -2,11 +2,12 @@ class CategoriesController < ApplicationController
   before_action :set_category, only: %i[show edit update destroy]
 
   def index
-    @categories = Category.ordered.includes(:documents)
+    @categories = Category.ordered
+    @document_counts = current_user.documents.group(:category_id).count
   end
 
   def show
-    @documents = @category.documents.recent.limit(100)
+    @documents = current_user.documents.where(category: @category).recent.limit(100)
   end
 
   def new
@@ -16,7 +17,7 @@ class CategoriesController < ApplicationController
   def create
     @category = Category.new(category_params)
     if @category.save
-      @category.ensure_directory!
+      FileUtils.mkdir_p(File.join(current_user.sorted_root, @category.directory_path))
       redirect_to categories_path, notice: "Category created and directory prepared."
     else
       render :new, status: :unprocessable_entity
@@ -28,7 +29,7 @@ class CategoriesController < ApplicationController
 
   def update
     if @category.update(category_params)
-      @category.ensure_directory!
+      FileUtils.mkdir_p(File.join(current_user.sorted_root, @category.directory_path))
       redirect_to @category, notice: "Category updated."
     else
       render :edit, status: :unprocessable_entity
@@ -37,7 +38,7 @@ class CategoriesController < ApplicationController
 
   def destroy
     if @category.documents.exists?
-      redirect_to categories_path, alert: "Move or delete documents first."
+      redirect_to categories_path, alert: "Move or delete documents first (including other users’ files)."
     else
       @category.destroy
       redirect_to categories_path, notice: "Category deleted."

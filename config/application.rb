@@ -45,9 +45,12 @@ module Docsort
     config.x.sorted_root = ENV.fetch("DOCSORT_SORTED_ROOT", Rails.root.join("storage", "sorted").to_s)
     config.x.inbox_root = ENV.fetch("DOCSORT_INBOX_ROOT", Rails.root.join("storage", "inbox").to_s)
 
-    # WebDAV credentials (override via env in production)
-    config.x.webdav.username = ENV.fetch("WEBDAV_USERNAME", "docsort")
-    config.x.webdav.password = ENV.fetch("WEBDAV_PASSWORD", "upload123")
+    # Bootstrap admin account (created on seed when no users exist)
+    config.x.admin.username = ENV.fetch("DOCSORT_ADMIN_USERNAME", "admin")
+    config.x.admin.password = ENV.fetch(
+      "DOCSORT_ADMIN_PASSWORD",
+      ENV.fetch("WEBDAV_PASSWORD", "changeme")
+    )
 
     # When an issuer/brand is detected and no type category fits well,
     # auto-create categories under storage/sorted/issuers/<brand>/

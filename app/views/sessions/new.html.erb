@@ -1,0 +1,24 @@
+<% content_for :title, "Sign in · DocSort" %>
+
+<section class="auth-panel">
+  <p class="eyebrow">Private LAN archive</p>
+  <h1 class="display" style="font-size:1.75rem;margin:0.35rem 0 0.5rem">Sign in</h1>
+  <p class="summary-body" style="margin-bottom:1.25rem">
+    Use your DocSort username and password. The same credentials work for WebDAV.
+  </p>
+
+  <%= form_with url: login_path, method: :post, local: true, class: "auth-form" do |f| %>
+    <div class="field">
+      <label for="username">Username</label>
+      <input type="text" name="username" id="username" autocomplete="username" autofocus required
+             class="input" value="<%= params[:username] %>">
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" name="password" id="password" autocomplete="current-password" required class="input">
+    </div>
+    <button type="submit" class="btn btn-upload" style="border:none;cursor:pointer;font:inherit;width:100%;justify-content:center">
+      Sign in
+    </button>
+  <% end %>
+</section>
