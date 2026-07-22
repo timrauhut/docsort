@@ -2,9 +2,14 @@ class Document < ApplicationRecord
   STATUSES = %w[pending processing classified failed unsorted].freeze
   SOURCES = %w[web webdav api].freeze
 
+  # UUID primary keys are not chronological; order by created_at instead.
+  self.implicit_order_column = "created_at"
+
   belongs_to :user
   belongs_to :category, optional: true
   has_one_attached :file
+
+  before_create :assign_uuid
 
   validates :original_filename, presence: true
   validates :status, inclusion: { in: STATUSES }
@@ -71,4 +76,11 @@ class Document < ApplicationRecord
     )
     ClassifyDocumentJob.perform_later(id)
   end
+
+  private
+
+  def assign_uuid
+    self.id ||= SecureRandom.uuid_v7
+  end
 end
+

@@ -1,4 +1,5 @@
 invoice_doc:
+  id: "01900000-0000-7000-8000-000000000001"
   title: Sample Invoice
   original_filename: invoice-001.pdf
   status: classified
@@ -18,6 +19,7 @@ invoice_doc:
   classifier_used: keywords
 
 pending_doc:
+  id: "01900000-0000-7000-8000-000000000002"
   title: Pending File
   original_filename: notes.txt
   status: pending
