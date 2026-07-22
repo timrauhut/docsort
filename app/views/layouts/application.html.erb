@@ -51,10 +51,12 @@
                 </span>
                 <span class="btn-upload__label">Upload</span>
               <% end %>
-              <div class="user-chip">
-                <span class="user-chip__avatar" aria-hidden="true"><%= current_user.username.to_s.first %></span>
-                <span class="user-chip__name"><%= current_user.username %></span>
-                <%= button_to "Sign out", logout_path, method: :delete, class: "user-chip__out", form: { class: "user-chip__form", style: "display:inline;margin:0" } %>
+              <div class="user-menu">
+                <div class="user-chip" title="Signed in as <%= current_user.username %>">
+                  <span class="user-chip__avatar" aria-hidden="true"><%= current_user.username.to_s.first.upcase %></span>
+                  <span class="user-chip__name"><%= current_user.username %></span>
+                </div>
+                <%= button_to "Sign out", logout_path, method: :delete, class: "btn-signout", form: { class: "user-menu__form" } %>
               </div>
             </div>
           </div>
