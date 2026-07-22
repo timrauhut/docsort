@@ -63,9 +63,23 @@
     <% end %>
 
     <% if @document.extracted_text.present? %>
+      <%
+        extract = @document.extracted_text.to_s
+        page_markers = extract.scan(/--- Page (\d+) ---/).flatten
+        page_label =
+          if page_markers.any?
+            "#{page_markers.size} page#{'s' if page_markers.size != 1} · #{number_with_delimiter(extract.length)} chars"
+          else
+            "#{number_with_delimiter(extract.length)} chars"
+          end
+      %>
       <section class="card card-pad">
-        <p class="eyebrow">Extracted text</p>
-        <pre class="extract-pre"><%= @document.extracted_text.truncate(6000) %></pre>
+        <div class="flex items-baseline justify-between gap-3 flex-wrap">
+          <p class="eyebrow" style="margin:0">Extracted text</p>
+          <p class="list-meta" style="margin:0"><%= page_label %></p>
+        </div>
+        <%# Full multi-page extract — scroll inside .extract-pre; do not truncate %>
+        <pre class="extract-pre"><%= extract %></pre>
       </section>
     <% end %>
 
