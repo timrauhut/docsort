@@ -1,13 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 64" width="320" height="64" fill="none" role="img" aria-label="DocSort">
   <rect width="64" height="64" rx="14" fill="#d7d72e"/>
-  <ellipse cx="32" cy="6" rx="34" ry="16" fill="#ffffff" opacity="0.22"/>
-  <rect x="20" y="14" width="28" height="40" rx="4" fill="#231e1e" opacity="0.14"/>
-  <path d="M18 12h19l11 11v25a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4V16a4 4 0 0 1 4-4z" fill="#ffffff"/>
-  <path d="M37 12v9a2 2 0 0 0 2 2h9L37 12z" fill="#e4e4df"/>
-  <path d="M37 12 48 23h-9a2 2 0 0 1-2-2V12z" fill="#231e1e" opacity="0.1"/>
-  <rect x="22" y="30" width="18" height="3.2" rx="1.6" fill="#231e1e"/>
-  <rect x="22" y="37.5" width="18" height="3.2" rx="1.6" fill="#231e1e" opacity="0.65"/>
-  <rect x="22" y="45" width="11" height="3.2" rx="1.6" fill="#231e1e" opacity="0.4"/>
-  <path d="M40.5 42.5 43.5 45.5 46.5 42.5" fill="none" stroke="#231e1e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
-  <text x="80" y="42" fill="#231e1e" font-family="Inter, Avenir Next, Segoe UI, system-ui, sans-serif" font-size="30" font-weight="700" letter-spacing="-0.045em">DocSort</text>
+  <ellipse cx="32" cy="6" rx="34" ry="16" fill="#ffffff" opacity="0.18"/>
+  <rect x="14" y="8" width="36" height="48" rx="6" fill="#231e1e"/>
+  <rect x="22" y="20" width="20" height="4.5" rx="2" fill="#d7d72e"/>
+  <rect x="22" y="29.5" width="20" height="4.5" rx="2" fill="#d7d72e"/>
+  <rect x="22" y="39" width="13" height="4.5" rx="2" fill="#d7d72e"/>
+  <text
+    x="80"
+    y="42"
+    fill="#231e1e"
+    font-family="Inter, Avenir Next, Segoe UI, system-ui, sans-serif"
+    font-size="30"
+    font-weight="700"
+    letter-spacing="-0.045em"
+  >DocSort</text>
 </svg>

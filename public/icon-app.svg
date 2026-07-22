@@ -1,13 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="DocSort">
   <!-- DocSort app icon @512 — PWA / home screen -->
   <rect width="512" height="512" rx="112" fill="#d7d72e"/>
-  <ellipse cx="256" cy="48" rx="272" ry="128" fill="#ffffff" opacity="0.22"/>
-  <rect x="160" y="112" width="224" height="320" rx="32" fill="#231e1e" opacity="0.14"/>
-  <path d="M144 96h152l88 88v200a32 32 0 0 1-32 32H144a32 32 0 0 1-32-32V128a32 32 0 0 1 32-32z" fill="#ffffff"/>
-  <path d="M296 96v72a16 16 0 0 0 16 16h72L296 96z" fill="#e4e4df"/>
-  <path d="M296 96 384 184h-72a16 16 0 0 1-16-16V96z" fill="#231e1e" opacity="0.1"/>
-  <rect x="176" y="240" width="144" height="26" rx="13" fill="#231e1e"/>
-  <rect x="176" y="300" width="144" height="26" rx="13" fill="#231e1e" opacity="0.65"/>
-  <rect x="176" y="360" width="88" height="26" rx="13" fill="#231e1e" opacity="0.4"/>
-  <path d="M324 340 348 364 372 340" fill="none" stroke="#231e1e" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+  <ellipse cx="256" cy="48" rx="272" ry="128" fill="#ffffff" opacity="0.18"/>
+  <rect x="112" y="64" width="288" height="384" rx="48" fill="#231e1e"/>
+  <rect x="176" y="160" width="160" height="36" rx="16" fill="#d7d72e"/>
+  <rect x="176" y="236" width="160" height="36" rx="16" fill="#d7d72e"/>
+  <rect x="176" y="312" width="104" height="36" rx="16" fill="#d7d72e"/>
 </svg>
