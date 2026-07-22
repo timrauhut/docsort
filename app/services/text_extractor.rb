@@ -1,15 +1,20 @@
 # Extracts plain text from uploaded documents for classification.
-# PDFs: embedded text on every page, plus OCR (Tesseract) for pages that
-# lack a usable text layer (scanned / image-only). Images can be OCR'd too.
+#
+# PDFs (default strategy — "auto"):
+#   1. Read the embedded text layer on every page (pdf-reader) — preferred.
+#   2. Only if a page is empty/sparse, fall back to Tesseract OCR for that page.
+#   3. Images (PNG/JPEG/…) always use OCR when available.
 class TextExtractor
-  # Stored / search corpus — keep multi-page OCR, not just a short snippet.
+  # Stored / search corpus — keep multi-page text, not just a short snippet.
   MAX_CHARS = ENV.fetch("DOCSORT_EXTRACT_MAX_CHARS", "100000").to_i
   # A page with fewer than this many letters/digits is treated as needing OCR.
   SPARSE_PAGE_CHARS = ENV.fetch("DOCSORT_OCR_SPARSE_CHARS", "40").to_i
   OCR_DPI = ENV.fetch("DOCSORT_OCR_DPI", "200").to_i
   OCR_TIMEOUT = ENV.fetch("DOCSORT_OCR_TIMEOUT", "120").to_i
-  # all = OCR every page (merge with embedded text); auto = sparse pages only; off = never
-  OCR_MODE = ENV.fetch("DOCSORT_OCR_MODE", "all").to_s.downcase
+  # auto = text layer first, OCR only as fallback (default)
+  # all  = force OCR every page (slow; merge with text layer)
+  # off  = never OCR
+  OCR_MODE = ENV.fetch("DOCSORT_OCR_MODE", "auto").to_s.downcase
   OCR_LANGS = ENV.fetch("DOCSORT_OCR_LANGS", "eng+deu").to_s
 
   def initialize(document)
@@ -114,17 +119,27 @@ class TextExtractor
     []
   end
 
-  # Ensure we have one entry per page and OCR sparse (or all) pages.
+  # Prefer embedded text; run Tesseract only for pages that need it (or when mode=all).
   def ocr_enrich_pdf_pages(path, embedded_pages)
     page_count = [ embedded_pages.size, pdf_page_count(path) ].max
     page_count = 1 if page_count < 1
 
+    # Fast path: every page already has a usable text layer → skip OCR entirely.
+    if !ocr_all_pages? && page_count.positive? &&
+       page_count == embedded_pages.size &&
+       embedded_pages.all? { |t| !sparse_page?(t) }
+      Rails.logger.info("TextExtractor: using embedded text layer for all #{page_count} pages (no OCR)")
+      return embedded_pages.map(&:to_s)
+    end
+
     Array.new(page_count) do |index|
       page_num = index + 1
       embedded = embedded_pages[index].to_s
+      # Default (auto): OCR only when the text layer is missing/thin.
       needs_ocr = ocr_all_pages? || sparse_page?(embedded)
 
       if needs_ocr
+        Rails.logger.info("TextExtractor: OCR fallback for page #{page_num} (sparse=#{sparse_page?(embedded)})")
         ocr_text = ocr_pdf_page(path, page_num)
         # Prefer the richer of embedded vs OCR so we never lose a good text layer.
         pick_richer(embedded, ocr_text)

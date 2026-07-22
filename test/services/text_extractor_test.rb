@@ -39,6 +39,39 @@ class TextExtractorTest < ActiveSupport::TestCase
     assert_includes chosen, "Scanned invoice"
   end
 
+  test "ocr enrich skips tesseract when every page has a text layer" do
+    pages = [
+      "Invoice number 12345 with enough embedded text",
+      "Second page also has a full paragraph of content"
+    ]
+    called = false
+    @extractor.define_singleton_method(:ocr_pdf_page) do |*_args|
+      called = true
+      "should not run"
+    end
+    @extractor.define_singleton_method(:pdf_page_count) { |_path| 2 }
+    @extractor.define_singleton_method(:ocr_all_pages?) { false }
+
+    result = @extractor.send(:ocr_enrich_pdf_pages, "/tmp/x.pdf", pages)
+
+    assert_equal pages, result
+    refute called, "Tesseract must not run when embedded text is usable"
+  end
+
+  test "ocr enrich falls back for sparse pages only" do
+    pages = [ "Full embedded text layer on page one with many words", "" ]
+    @extractor.define_singleton_method(:pdf_page_count) { |_path| 2 }
+    @extractor.define_singleton_method(:ocr_all_pages?) { false }
+    @extractor.define_singleton_method(:ocr_pdf_page) do |_path, page_num|
+      "OCR text for page #{page_num} with scanned content"
+    end
+
+    result = @extractor.send(:ocr_enrich_pdf_pages, "/tmp/x.pdf", pages)
+
+    assert_equal pages[0], result[0]
+    assert_includes result[1], "OCR text for page 2"
+  end
+
   test "text for model keeps head and tail of long extracts" do
     classifier = DocumentClassifier.new(
       Document.new(original_filename: "x.pdf", status: "pending", source: "web"),
