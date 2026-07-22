@@ -122,7 +122,8 @@ class DocumentClassifier
       filename: @document.original_filename,
       content_type: @document.content_type,
       heuristic_issuer: issuer_info[:issuer],
-      document_text: text.to_s.truncate(8000)
+      # Keep prompt small for Pi / small models (faster, less rambling)
+      document_text: text.to_s.truncate(4000)
     }.to_json
 
     parsed = @ollama.chat(system: system, user: user, format_json: true)

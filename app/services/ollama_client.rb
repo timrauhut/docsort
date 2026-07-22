@@ -29,14 +29,19 @@ class OllamaClient
     raise Unavailable, e.message
   end
 
-  def chat(system:, user:, format_json: true)
+  def chat(system:, user:, format_json: true, num_predict: 384)
     body = {
       model: @model,
       stream: false,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user }
-      ]
+      ],
+      # Keep responses short — Pi/1B models otherwise ramble for minutes
+      options: {
+        num_predict: num_predict,
+        temperature: 0.1
+      }
     }
     body[:format] = "json" if format_json
 
