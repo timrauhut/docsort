@@ -5,8 +5,9 @@ class ClassifyDocumentJob < ApplicationJob
 
   def perform(document_id)
     document = Document.find(document_id)
-    return if document.status == "processing"
 
+    # Always (re)run — do not bail on "processing" or a crashed prior job leaves
+    # the document stuck forever and reclassify races become no-ops.
     document.update!(status: "processing", error_message: nil)
 
     text = TextExtractor.new(document).call
