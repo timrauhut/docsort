@@ -172,10 +172,13 @@ body.docsort-body::before {
 .brand__logo {
   width: 2.35rem;
   height: 2.35rem;
-  border-radius: 0.65rem;
+  border-radius: 0.7rem;
   display: block;
   box-shadow: var(--shadow-sm);
   flex-shrink: 0;
+  /* Icon SVG already has the app tile; avoid double-cropping oddities */
+  object-fit: cover;
+  background: transparent;
 }
 
 .brand__mark {

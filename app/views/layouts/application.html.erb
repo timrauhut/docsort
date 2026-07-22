@@ -14,9 +14,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="icon" href="/favicon-16.png" type="image/png" sizes="16x16">
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+    <link rel="mask-icon" href="/favicon.svg" color="#d7d72e">
     <%= stylesheet_link_tag "tailwind", "application", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
@@ -27,7 +30,7 @@
         <header class="site-header">
           <div class="site-header__inner">
             <%= link_to root_path, class: "brand" do %>
-              <%= image_tag "/icon.svg", alt: "DocSort", class: "brand__logo", width: 40, height: 40 %>
+              <%= image_tag "/icon.svg", alt: "DocSort", class: "brand__logo", width: 40, height: 40, decoding: "async" %>
               <span>
                 <span class="brand__title">DocSort</span>
                 <span class="brand__tag">Local archive · private AI</span>
