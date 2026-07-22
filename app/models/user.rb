@@ -11,7 +11,7 @@ class User < ApplicationRecord
               with: /\A[a-zA-Z0-9][a-zA-Z0-9._-]*\z/,
               message: "may only contain letters, numbers, dots, underscores, and hyphens"
             }
-  validates :password, length: { minimum: 6 }, if: -> { password.present? }
+  validates :password, length: { minimum: 6, maximum: 72 }, if: -> { password.present? }
 
   before_validation :normalize_username
 
