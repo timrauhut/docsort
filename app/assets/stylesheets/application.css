@@ -284,91 +284,65 @@ body.docsort-body::before {
   color: var(--ink);
 }
 
-/* Signed-in identity + sign-out — split so Sign out is a real control */
-.user-menu {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-
+/* User menu reuses .nav-pills so it matches Home / Documents / … */
 .user-menu__form {
-  display: inline;
+  display: contents;
   margin: 0;
 }
 
 .user-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.28rem 0.85rem 0.28rem 0.28rem;
-  border-radius: 999px;
-  background: #fff;
-  border: 1px solid rgb(35 30 30 / 14%);
-  box-shadow: 0 1px 0 rgb(255 255 255 / 70%) inset, var(--shadow-sm);
-  font-size: 0.8rem;
-  line-height: 1;
+  gap: 0.4rem;
+  cursor: default;
+  pointer-events: none;
 }
 
 .user-chip__avatar {
   display: grid;
   place-items: center;
-  width: 1.85rem;
-  height: 1.85rem;
+  width: 1.15rem;
+  height: 1.15rem;
   border-radius: 999px;
-  background: var(--buzz-ink);
-  color: var(--buzz-chartreuse);
-  font-size: 0.75rem;
+  background: var(--buzz-chartreuse);
+  color: var(--buzz-ink);
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   text-transform: uppercase;
   flex-shrink: 0;
-  box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px rgb(215 215 46 / 55%);
+  line-height: 1;
 }
 
 .user-chip__name {
-  font-weight: 650;
-  color: var(--ink);
-  font-size: 0.84rem;
-  letter-spacing: -0.015em;
-  max-width: 9rem;
+  max-width: 8rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.btn-signout {
+/* button_to → looks like a nav-pill link */
+button.nav-pill.user-menu__out {
   appearance: none;
-  border: 1px solid rgb(35 30 30 / 16%);
-  background: #fff;
-  color: var(--ink-soft);
+  border: none;
+  background: transparent;
   font: inherit;
-  font-weight: 600;
-  font-size: 0.78rem;
-  letter-spacing: -0.01em;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(35 30 30 / 65%);
   cursor: pointer;
-  padding: 0.55rem 0.95rem;
+  padding: 0.45rem 0.85rem;
   border-radius: 999px;
-  line-height: 1;
-  box-shadow: var(--shadow-sm);
-  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+  line-height: inherit;
 }
 
-.btn-signout:hover {
-  background: var(--buzz-ink);
-  border-color: var(--buzz-ink);
-  color: var(--buzz-chartreuse);
+button.nav-pill.user-menu__out:hover {
+  color: var(--ink);
+  background: rgb(255 255 255 / 55%);
   text-decoration: none;
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
 }
 
-.btn-signout:active {
-  transform: translateY(0);
-}
-
-.btn-signout:focus-visible {
-  outline: 2px solid var(--buzz-chartreuse);
-  outline-offset: 2px;
+button.nav-pill.user-menu__out:focus-visible {
+  outline: 2px solid var(--buzz-ink);
+  outline-offset: 1px;
 }
 
 .issuer-chip {
