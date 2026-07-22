@@ -12,7 +12,7 @@
 <div class="cat-grid">
   <% @categories.each do |category| %>
     <article class="cat-card">
-      <span class="cat-card__stripe" style="background:<%= category.color %>"></span>
+      <span class="cat-card__stripe" style="<%= category_stripe_style(category) %>"></span>
       <div class="flex items-start justify-between gap-3">
         <div class="flex items-center gap-2">
           <%= category_swatch(category, size: 12) %>

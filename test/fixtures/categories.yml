@@ -6,7 +6,7 @@ invoices:
   keywords: invoice, bill
   auto_create: true
   position: 10
-  color: "#0ea5e9"
+  color: "#5b7c99"
 
 unsorted:
   name: Unsorted
@@ -16,4 +16,4 @@ unsorted:
   keywords: ""
   auto_create: true
   position: 999
-  color: "#94a3b8"
+  color: "#9b9b96"

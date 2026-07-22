@@ -39,7 +39,8 @@ categories = [
     directory_path: "finance/invoices",
     description: "Vendor invoices, bills, and payment requests.",
     keywords: "invoice, bill, amount due, payment, tax id, vat, total, due date",
-    color: "#0ea5e9",
+    # Colors harmonized with buzz.xyz (ink #231e1e, chartreuse #d7d72e, paper #eeeeeb)
+    color: "#5b7c99",
     position: 10
   },
   {
@@ -48,7 +49,7 @@ categories = [
     directory_path: "finance/receipts",
     description: "Purchase receipts and expense proofs.",
     keywords: "receipt, purchased, paid, transaction, store, merchant, cash",
-    color: "#14b8a6",
+    color: "#3d7a6a",
     position: 20
   },
   {
@@ -57,7 +58,7 @@ categories = [
     directory_path: "legal/contracts",
     description: "Agreements, NDAs, and signed contracts.",
     keywords: "agreement, contract, party, terms, signature, nda, clause, effective date",
-    color: "#8b5cf6",
+    color: "#6b5f7a",
     position: 30
   },
   {
@@ -66,7 +67,7 @@ categories = [
     directory_path: "hr/resumes",
     description: "CVs, résumés, and career profiles.",
     keywords: "resume, curriculum vitae, experience, education, skills, employment",
-    color: "#f59e0b",
+    color: "#8a7a32",
     position: 40
   },
   {
@@ -75,7 +76,7 @@ categories = [
     directory_path: "work/reports",
     description: "Business reports, analytics, and status updates.",
     keywords: "report, analysis, metrics, quarterly, findings, summary, kpi",
-    color: "#6366f1",
+    color: "#5a6570",
     position: 50
   },
   {
@@ -84,7 +85,7 @@ categories = [
     directory_path: "personal/correspondence",
     description: "Letters, emails exported as files, formal messages.",
     keywords: "dear, sincerely, letter, email, regarding, invitation",
-    color: "#ec4899",
+    color: "#7a5c5c",
     position: 60
   },
   {
@@ -93,7 +94,7 @@ categories = [
     directory_path: "work/technical",
     description: "Specs, READMEs, architecture notes, and code-related docs.",
     keywords: "api, specification, architecture, readme, configuration, deployment, schema",
-    color: "#64748b",
+    color: "#5c5a52",
     position: 70
   },
   {
@@ -102,7 +103,7 @@ categories = [
     directory_path: "unsorted",
     description: "Fallback bucket when classification is uncertain.",
     keywords: "",
-    color: "#94a3b8",
+    color: "#9b9b96",
     position: 999
   }
 ]

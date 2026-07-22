@@ -19,7 +19,7 @@
           </div>
           <div class="flex shrink-0 flex-col items-end gap-1">
             <% if doc.category %>
-              <span class="pill pill-cat" style="background:<%= doc.category.color %>"><%= doc.category.name %></span>
+              <%= category_pill(doc.category) %>
             <% end %>
             <span class="<%= doc.status_badge_class %>"><%= doc.status %></span>
           </div>

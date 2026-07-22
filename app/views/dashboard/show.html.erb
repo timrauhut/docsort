@@ -23,19 +23,19 @@
     <div class="stat-tile__label">Total</div>
     <div class="stat-tile__value"><%= @stats[:total] %></div>
   </div>
-  <div class="stat-tile stat-tile--pending">
+  <div class="stat-tile">
     <div class="stat-tile__label">Pending</div>
     <div class="stat-tile__value"><%= @stats[:pending] %></div>
   </div>
-  <div class="stat-tile stat-tile--ok">
+  <div class="stat-tile">
     <div class="stat-tile__label">Classified</div>
     <div class="stat-tile__value"><%= @stats[:classified] %></div>
   </div>
-  <div class="stat-tile stat-tile--bad">
+  <div class="stat-tile">
     <div class="stat-tile__label">Failed</div>
     <div class="stat-tile__value"><%= @stats[:failed] %></div>
   </div>
-  <div class="stat-tile stat-tile--teal">
+  <div class="stat-tile">
     <div class="stat-tile__label">Categories</div>
     <div class="stat-tile__value"><%= @stats[:categories] %></div>
   </div>
@@ -110,7 +110,7 @@ ollama serve</pre>
           </div>
           <div class="flex shrink-0 items-center gap-2">
             <% if doc.category %>
-              <span class="pill pill-cat" style="background:<%= doc.category.color %>"><%= doc.category.name %></span>
+              <%= category_pill(doc.category) %>
             <% end %>
             <span class="<%= doc.status_badge_class %>"><%= doc.status %></span>
           </div>
