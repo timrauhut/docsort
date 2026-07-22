@@ -1,8 +1,10 @@
 puts "Seeding DocSort…"
 
 # --- Admin user (same credentials for web UI + WebDAV) ---
-admin_username = Rails.application.config.x.admin.username
-admin_password = Rails.application.config.x.admin.password
+admin_username = Rails.application.config.x.admin.username.to_s.strip.presence || "admin"
+# bcrypt / has_secure_password max is 72 bytes
+admin_password = Rails.application.config.x.admin.password.to_s.byteslice(0, 72).to_s
+admin_password = "changeme" if admin_password.blank?
 
 if User.none?
   admin = User.create!(
