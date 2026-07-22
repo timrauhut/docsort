@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Local preflight checks before deploying DocSort with Kamal.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+export PATH="/opt/homebrew/opt/ruby/bin:/opt/homebrew/lib/ruby/gems/4.0.0/bin:${PATH:-}"
+
+ok=0
+warn=0
+fail=0
+
+pass() { echo "  OK  $*"; ok=$((ok + 1)); }
+note() { echo " WARN $*"; warn=$((warn + 1)); }
+bad()  { echo "FAIL  $*"; fail=$((fail + 1)); }
+
+echo "==> DocSort Kamal doctor"
+echo ""
+
+# Ruby / bundler
+if command -v bundle >/dev/null 2>&1; then
+  pass "bundle available"
+else
+  bad "bundle not found — install Ruby/Bundler"
+fi
+
+if bundle exec kamal version >/dev/null 2>&1; then
+  pass "kamal $(bundle exec kamal version 2>/dev/null | head -1)"
+else
+  bad "kamal not available via bundle exec"
+fi
+
+# Docker (local build)
+if command -v docker >/dev/null 2>&1; then
+  if docker info >/dev/null 2>&1; then
+    pass "docker daemon reachable"
+  else
+    bad "docker installed but daemon not running"
+  fi
+else
+  bad "docker CLI not found (needed to build images)"
+fi
+
+# Git revision (Kamal image tag)
+if git rev-parse HEAD >/dev/null 2>&1; then
+  pass "git HEAD $(git rev-parse --short HEAD)"
+else
+  bad "no git commit yet — Kamal needs HEAD (git add -A && git commit)"
+fi
+
+# Files
+[[ -f config/deploy.yml ]] && pass "config/deploy.yml" || bad "missing config/deploy.yml"
+[[ -f .kamal/secrets ]] && pass ".kamal/secrets" || bad "missing .kamal/secrets"
+[[ -f config/master.key ]] && pass "config/master.key" || bad "missing config/master.key"
+[[ -f Dockerfile ]] && pass "Dockerfile" || bad "missing Dockerfile"
+[[ -x bin/docker-entrypoint ]] && pass "bin/docker-entrypoint executable" || note "chmod +x bin/docker-entrypoint"
+
+# Hooks executable
+for h in .kamal/hooks/*; do
+  [[ -f "$h" ]] || continue
+  if [[ -x "$h" ]]; then
+    pass "hook $(basename "$h") executable"
+  else
+    note "hook $(basename "$h") not executable — run chmod +x .kamal/hooks/*"
+  fi
+done
+
+# Secrets env
+if [[ -n "${WEBDAV_PASSWORD:-}" ]]; then
+  pass "WEBDAV_PASSWORD is set"
+else
+  bad "WEBDAV_PASSWORD not set (export before deploy)"
+fi
+
+# deploy.yml placeholders
+if grep -q '192.168.0.1' config/deploy.yml; then
+  note "deploy.yml still has placeholder IP 192.168.0.1 — edit servers.web and accessories.ollama.host"
+else
+  pass "deploy.yml server IP looks customized"
+fi
+
+if grep -q 'docsort.example.com' config/deploy.yml; then
+  note "proxy.host is still docsort.example.com — set a real host if using SSL"
+fi
+
+if grep -q 'server: localhost:5555' config/deploy.yml; then
+  note "registry is localhost:5555 (fine for single-host local registry; use Docker Hub/GHCR for multi-host)"
+fi
+
+# SSH hint
+echo ""
+echo "SSH tip: you should be able to:  ssh root@<server-ip>  (or your ssh.user)"
+echo ""
+
+echo "Summary: ${ok} ok, ${warn} warnings, ${fail} failures"
+if [[ "$fail" -gt 0 ]]; then
+  exit 1
+fi
+exit 0

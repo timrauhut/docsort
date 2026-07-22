@@ -1,0 +1,41 @@
+<% content_for :title, "Upload · DocSort" %>
+
+<div class="narrow-md">
+  <div class="page-hero" style="margin-bottom:1.25rem">
+    <div>
+      <p class="eyebrow">Ingest</p>
+      <h1>Upload</h1>
+      <p class="lede">
+        Files are classified with your local model, the issuing brand is detected when possible,
+        and everything is sorted into category folders.
+      </p>
+    </div>
+  </div>
+
+  <%= form_with model: @document, url: documents_path, multipart: true, class: "form-card field-stack" do |f| %>
+    <div class="upload-zone">
+      <div class="upload-zone__icon" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="m6 10 6-6 6 6"/><path d="M4 20h16"/></svg>
+      </div>
+      <p style="margin:0;font-family:var(--font-display);font-size:1.25rem;font-weight:550">Add files to your archive</p>
+      <p style="margin:0.45rem 0 1.15rem;font-size:0.9rem;color:var(--ink-soft)">
+        PDF, text, Markdown, CSV, JSON · multi-select supported
+      </p>
+      <%= file_field_tag "document[files][]", multiple: true, required: true %>
+    </div>
+
+    <div class="actions-row" style="justify-content:center">
+      <%= f.submit "Upload & classify", class: "btn btn-upload", style: "border:none;cursor:pointer;font:inherit" %>
+      <%= link_to "Cancel", documents_path, class: "btn btn-ghost" %>
+    </div>
+  <% end %>
+
+  <div class="card card-pad" style="margin-top:1.25rem">
+    <p class="eyebrow">Prefer WebDAV?</p>
+    <p class="summary-body">
+      Connect Finder or a phone client to
+      <code class="mono" style="background:var(--paper);padding:0.1rem 0.4rem;border-radius:0.3rem">/webdav</code>
+      with user <strong>docsort</strong>.
+    </p>
+  </div>
+</div>

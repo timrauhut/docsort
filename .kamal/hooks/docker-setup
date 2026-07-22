@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "==> [docker-setup] Docker installed/ready on deploy hosts"

@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Manage the Ollama accessory on the deploy host.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+export PATH="/opt/homebrew/opt/ruby/bin:/opt/homebrew/lib/ruby/gems/4.0.0/bin:${PATH:-}"
+
+usage() {
+  cat <<'EOF'
+Usage: bin/kamal-ollama <command>
+
+Commands:
+  boot       Start the ollama accessory
+  stop       Stop the ollama accessory
+  reboot     Restart ollama
+  pull       Pull model (default: llama3.2, or $OLLAMA_PULL_MODEL)
+  pull-small Pull llama3.2:1b (good for Raspberry Pi)
+  list       List installed models
+  logs       Tail ollama logs
+  shell      Interactive shell in the ollama container
+  status     Show accessory details
+EOF
+}
+
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
+  boot)   bin/kamal accessory boot ollama "$@" ;;
+  stop)   bin/kamal accessory stop ollama "$@" ;;
+  reboot) bin/kamal accessory reboot ollama "$@" ;;
+  pull)
+    MODEL="${OLLAMA_PULL_MODEL:-llama3.2}"
+    echo "==> Pulling ${MODEL} on ollama accessory…"
+    bin/kamal accessory exec ollama -- "ollama pull ${MODEL}"
+    ;;
+  pull-small)
+    bin/kamal accessory exec ollama -- "ollama pull llama3.2:1b"
+    ;;
+  list)   bin/kamal accessory exec ollama -- "ollama list" ;;
+  logs)   bin/kamal accessory logs ollama -f "$@" ;;
+  shell)  bin/kamal accessory exec ollama --interactive --reuse -- "bash" ;;
+  status) bin/kamal accessory details ollama "$@" ;;
+  ""|-h|--help) usage ;;
+  *)
+    echo "Unknown command: $cmd" >&2
+    usage >&2
+    exit 1
+    ;;
+esac

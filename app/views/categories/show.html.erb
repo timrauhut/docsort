@@ -1,0 +1,22 @@
+<% content_for :title, "#{@category.name} · DocSort" %>
+
+<div class="page-hero">
+  <div class="flex items-center gap-3">
+    <%= category_swatch(@category, size: 16) %>
+    <div>
+      <p class="eyebrow">Category</p>
+      <h1><%= @category.name %></h1>
+      <p class="lede mono" style="font-size:0.85rem"><%= @category.directory_path %>/</p>
+    </div>
+  </div>
+  <div class="actions-row">
+    <%= link_to "Edit", edit_category_path(@category), class: "btn btn-ghost btn-sm" %>
+    <%= link_to "Back", categories_path, class: "btn btn-ghost btn-sm" %>
+  </div>
+</div>
+
+<% if @category.description.present? %>
+  <p class="summary-body" style="margin:-0.5rem 0 1.5rem;max-width:40rem"><%= @category.description %></p>
+<% end %>
+
+<%= render "documents/table", documents: @documents %>

@@ -1,0 +1,19 @@
+invoices:
+  name: Invoices
+  slug: invoices
+  description: Test invoices
+  directory_path: finance/invoices
+  keywords: invoice, bill
+  auto_create: true
+  position: 10
+  color: "#0ea5e9"
+
+unsorted:
+  name: Unsorted
+  slug: unsorted
+  description: Fallback
+  directory_path: unsorted
+  keywords: ""
+  auto_create: true
+  position: 999
+  color: "#94a3b8"

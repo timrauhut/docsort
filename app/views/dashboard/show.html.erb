@@ -1,0 +1,138 @@
+<% content_for :title, "Home · DocSort" %>
+
+<section class="hero-ribbon">
+  <p class="eyebrow">Your private document archive</p>
+  <h1>Sort once. Find forever.</h1>
+  <p>
+    Drop files over the web or WebDAV. A local model classifies them and files them into folders you control — no cloud required.
+  </p>
+  <div class="hero-ribbon__actions">
+    <%= link_to new_document_path, class: "btn btn-upload" do %>
+      <span class="btn-upload__icon" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="m6 10 6-6 6 6"/><path d="M4 20h16"/></svg>
+      </span>
+      <span class="btn-upload__label">Upload documents</span>
+    <% end %>
+    <%= link_to "Browse library", documents_path, class: "btn btn-on-dark" %>
+  </div>
+</section>
+
+
+<div class="stat-grid">
+  <div class="stat-tile">
+    <div class="stat-tile__label">Total</div>
+    <div class="stat-tile__value"><%= @stats[:total] %></div>
+  </div>
+  <div class="stat-tile stat-tile--pending">
+    <div class="stat-tile__label">Pending</div>
+    <div class="stat-tile__value"><%= @stats[:pending] %></div>
+  </div>
+  <div class="stat-tile stat-tile--ok">
+    <div class="stat-tile__label">Classified</div>
+    <div class="stat-tile__value"><%= @stats[:classified] %></div>
+  </div>
+  <div class="stat-tile stat-tile--bad">
+    <div class="stat-tile__label">Failed</div>
+    <div class="stat-tile__value"><%= @stats[:failed] %></div>
+  </div>
+  <div class="stat-tile stat-tile--teal">
+    <div class="stat-tile__label">Categories</div>
+    <div class="stat-tile__value"><%= @stats[:categories] %></div>
+  </div>
+</div>
+
+<div class="panel-grid panel-grid--3">
+  <section class="card card-pad">
+    <p class="eyebrow">Intelligence</p>
+    <h2 class="display" style="font-size:1.2rem;margin:0.35rem 0 0">Local model</h2>
+
+    <% if @ollama[:available] %>
+      <p class="pill pill-on" style="margin-top:1rem">
+        <span class="status-dot status-dot--on"></span> Online
+      </p>
+      <dl class="meta-list" style="margin-top:1.1rem">
+        <div><dt>Host</dt><dd class="mono" style="font-size:0.72rem"><%= @ollama[:host].to_s.sub(%r{\Ahttps?://}, "") %></dd></div>
+        <div><dt>Model</dt><dd class="mono" style="font-size:0.72rem"><%= @ollama[:model] %></dd></div>
+        <div><dt>Ready</dt><dd style="font-size:0.8rem"><%= @ollama[:models].first(3).join(", ").presence || "—" %></dd></div>
+      </dl>
+    <% else %>
+      <p class="pill pill-off" style="margin-top:1rem">
+        <span class="status-dot status-dot--off"></span> Offline · keywords active
+      </p>
+      <p class="summary-body">
+        Install <a href="https://ollama.com" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600">Ollama</a>, then:
+      </p>
+      <pre class="code-block">ollama pull <%= @ollama[:model] %>
+ollama serve</pre>
+    <% end %>
+  </section>
+
+  <section class="card card-pad" style="grid-column: span 1">
+    <p class="eyebrow">Ingest</p>
+    <h2 class="display" style="font-size:1.2rem;margin:0.35rem 0 0">WebDAV inbox</h2>
+    <p class="summary-body">
+      Mount as a network drive from Finder, scanners, or your phone.
+      Credentials: <span class="mono" style="background:var(--paper);padding:0.1rem 0.35rem;border-radius:0.3rem">docsort</span>
+      /
+      <span class="mono" style="background:var(--paper);padding:0.1rem 0.35rem;border-radius:0.3rem">upload123</span>
+    </p>
+    <div class="webdav-insets">
+      <div class="inset">
+        <p class="inset__label">URL</p>
+        <p class="mono" style="margin:0;font-size:0.75rem;word-break:break-all;color:var(--ink)"><%= request.base_url %>/webdav</p>
+      </div>
+      <div class="inset">
+        <p class="inset__label">curl</p>
+        <pre style="margin:0;font-family:var(--font-mono);font-size:0.68rem;color:var(--ink-soft);white-space:pre-wrap">curl -T file.pdf -u docsort:upload123 \
+  <%= request.base_url %>/webdav/file.pdf</pre>
+      </div>
+    </div>
+    <p class="list-meta" style="margin-top:0.85rem">macOS: Finder → Go → Connect to Server (⌘K)</p>
+  </section>
+</div>
+
+<div class="panel-grid panel-grid--2">
+  <section class="card card-flush">
+    <div class="card-header">
+      <h2>Recent documents</h2>
+      <%= link_to "View all →", documents_path, class: "card-link" %>
+    </div>
+    <% if @recent.empty? %>
+      <div class="empty-state">No documents yet. Upload one to begin your archive.</div>
+    <% else %>
+      <% @recent.each do |doc| %>
+        <div class="list-row">
+          <div class="min-w-0">
+            <%= link_to doc.display_title, doc, class: "truncate block" %>
+            <p class="list-meta truncate"><%= doc.original_filename %> · <%= doc.source %></p>
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            <% if doc.category %>
+              <span class="pill pill-cat" style="background:<%= doc.category.color %>"><%= doc.category.name %></span>
+            <% end %>
+            <span class="<%= doc.status_badge_class %>"><%= doc.status %></span>
+          </div>
+        </div>
+      <% end %>
+    <% end %>
+  </section>
+
+  <section class="card card-flush">
+    <div class="card-header">
+      <h2>Folders</h2>
+      <%= link_to "Manage →", categories_path, class: "card-link" %>
+    </div>
+    <% @categories.each do |category| %>
+      <div class="list-row">
+        <div class="flex items-center gap-3 min-w-0">
+          <%= category_swatch(category, size: 12) %>
+          <div class="min-w-0">
+            <%= link_to category.name, category %>
+            <p class="list-meta mono truncate"><%= category.directory_path %>/</p>
+          </div>
+        </div>
+        <span class="pill pill-soft tabular-nums"><%= category.documents.size %></span>
+      </div>
+    <% end %>
+  </section>
+</div>

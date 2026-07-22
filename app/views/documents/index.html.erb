@@ -1,0 +1,84 @@
+<% content_for :title, "Documents · DocSort" %>
+
+<div class="page-hero">
+  <div>
+    <p class="eyebrow">Library</p>
+    <h1>Documents</h1>
+    <p class="lede">
+      <%= @stats[:total] %> total
+      · <%= @stats[:pending] %> pending
+      · <%= @stats[:classified] %> classified
+    </p>
+  </div>
+  <%= link_to new_document_path, class: "btn btn-upload" do %>
+    <span class="btn-upload__icon" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="m6 10 6-6 6 6"/><path d="M4 20h16"/></svg>
+    </span>
+    <span class="btn-upload__label">Upload</span>
+  <% end %>
+</div>
+
+
+<div
+  data-controller="typeahead"
+  data-typeahead-url-value="<%= autocomplete_documents_path %>"
+  data-typeahead-delay-value="220"
+  data-typeahead-min-length-value="1"
+  style="margin-bottom:1.5rem"
+>
+  <%= form_with url: documents_path, method: :get, data: { typeahead_target: "form", turbo_frame: "documents_results" }, class: "form-card" do %>
+    <div style="display:grid;gap:1rem">
+      <div class="relative" style="position:relative">
+        <label class="form-label" for="document_search_q">Search</label>
+        <%= text_field_tag :q, params[:q],
+              id: "document_search_q",
+              placeholder: "Type a title, filename, tag…",
+              autocomplete: "off",
+              autofocus: params[:q].blank?,
+              role: "combobox",
+              aria: {
+                autocomplete: "list",
+                expanded: "false",
+                controls: "document-typeahead-panel",
+                haspopup: "listbox"
+              },
+              data: {
+                typeahead_target: "input",
+                action: "input->typeahead#search focus->typeahead#open blur->typeahead#maybeClose"
+              } %>
+
+        <div
+          id="document-typeahead-panel"
+          data-typeahead-target="panel"
+          class="typeahead-panel hidden"
+        ></div>
+      </div>
+
+      <div style="display:grid;gap:1rem" class="field-row field-row-2">
+        <div>
+          <label class="form-label">Category</label>
+          <%= select_tag :category_id,
+                options_from_collection_for_select(@categories, :id, :name, params[:category_id]),
+                include_blank: "All categories",
+                data: { action: "change->typeahead#submitForm" } %>
+        </div>
+        <div>
+          <label class="form-label">Status</label>
+          <%= select_tag :status,
+                options_for_select(Document::STATUSES, params[:status]),
+                include_blank: "All statuses",
+                data: { action: "change->typeahead#submitForm" } %>
+        </div>
+      </div>
+
+      <div class="actions-row" style="justify-content:space-between">
+        <span class="filter-hint">Results update as you type · ↑↓ navigate suggestions</span>
+        <%= link_to "Reset filters", documents_path, class: "btn btn-ghost btn-sm", data: { turbo_frame: "_top" } %>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+<%= turbo_frame_tag "documents_results" do %>
+  <%= render "table", documents: @documents %>
+<% end %>

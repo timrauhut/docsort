@@ -1,0 +1,123 @@
+<% content_for :title, "#{@document.display_title} · DocSort" %>
+
+<div class="page-hero">
+  <div>
+    <p class="eyebrow">Document</p>
+    <h1><%= @document.display_title %></h1>
+    <p class="lede mono" style="font-size:0.85rem"><%= @document.original_filename %></p>
+    <% if @document.issuer.present? %>
+      <p style="margin:0.75rem 0 0">
+        <span class="issuer-chip">
+          <span class="issuer-chip__icon" aria-hidden="true">◎</span>
+          Issuer: <%= @document.issuer %>
+          <% if @document.issuer_confidence.present? %>
+            <span style="opacity:0.7;font-weight:500">(<%= confidence_label(@document.issuer_confidence) %>)</span>
+          <% end %>
+        </span>
+      </p>
+    <% end %>
+  </div>
+  <div class="actions-row">
+    <%= button_to "Reclassify", reclassify_document_path(@document), method: :post, class: "btn btn-ghost btn-sm" %>
+    <%= link_to "Edit", edit_document_path(@document), class: "btn btn-ghost btn-sm" %>
+    <% if @document.file.attached? %>
+      <%= link_to "Download", download_document_path(@document), class: "btn btn-primary btn-sm" %>
+    <% end %>
+  </div>
+</div>
+
+<div class="detail-grid">
+  <div class="stack">
+    <section class="card card-pad">
+      <p class="eyebrow">Summary</p>
+      <p class="summary-body"><%= @document.summary.presence || "No summary yet — reclassify after Ollama is online, or add one manually." %></p>
+      <% if @document.tag_list.any? %>
+        <div style="margin-top:1rem;display:flex;flex-wrap:wrap;gap:0.35rem">
+          <% @document.tag_list.each do |tag| %>
+            <span class="kw"><%= tag %></span>
+          <% end %>
+        </div>
+      <% end %>
+    </section>
+
+    <% if @document.issuer.present? %>
+      <section class="card card-pad">
+        <p class="eyebrow">Letterhead / brand</p>
+        <h2 class="display" style="font-size:1.25rem;margin:0.4rem 0 0"><%= @document.issuer %></h2>
+        <p class="summary-body">
+          Detected as the company or brand that issued this document.
+          You can turn it into its own filing category under <span class="mono">issuers/</span>.
+        </p>
+        <% issuer_cat = Category.find_by(slug: "issuer-#{@document.issuer.parameterize}") %>
+        <% if issuer_cat && @document.category_id == issuer_cat.id %>
+          <p class="list-meta" style="margin-top:0.75rem">Already filed under category “<%= issuer_cat.name %>”.</p>
+        <% else %>
+          <div class="actions-row" style="margin-top:1rem">
+            <%= button_to "Create category for #{@document.issuer.truncate(28)}",
+                  create_issuer_category_document_path(@document),
+                  method: :post,
+                  class: "btn btn-primary" %>
+          </div>
+        <% end %>
+      </section>
+    <% end %>
+
+    <% if @document.extracted_text.present? %>
+      <section class="card card-pad">
+        <p class="eyebrow">Extracted text</p>
+        <pre class="extract-pre"><%= @document.extracted_text.truncate(6000) %></pre>
+      </section>
+    <% end %>
+
+    <% if @document.error_message.present? %>
+      <section class="card card-pad" style="border-color:rgba(163,59,59,0.25);background:var(--danger-soft)">
+        <p class="eyebrow" style="color:var(--danger)">Error</p>
+        <p class="summary-body" style="color:var(--danger)"><%= @document.error_message %></p>
+      </section>
+    <% end %>
+  </div>
+
+  <div class="stack">
+    <section class="card card-pad">
+      <p class="eyebrow">Details</p>
+      <dl class="meta-list" style="margin-top:1rem">
+        <div><dt>Status</dt><dd><span class="<%= @document.status_badge_class %>"><%= @document.status %></span></dd></div>
+        <div>
+          <dt>Category</dt>
+          <dd>
+            <% if @document.category %>
+              <span class="inline-flex items-center gap-2">
+                <%= category_swatch(@document.category) %>
+                <%= @document.category.name %>
+              </span>
+            <% else %>
+              —
+            <% end %>
+          </dd>
+        </div>
+        <div><dt>Issuer</dt><dd><%= @document.issuer.presence || "—" %></dd></div>
+        <div><dt>Confidence</dt><dd class="tabular-nums"><%= confidence_label(@document.confidence) %></dd></div>
+        <div><dt>Classifier</dt><dd class="mono" style="font-size:0.72rem"><%= @document.classifier_used || "—" %></dd></div>
+        <div><dt>Source</dt><dd><span class="pill pill-soft"><%= @document.source %></span></dd></div>
+        <div><dt>Type</dt><dd style="font-size:0.8rem"><%= @document.content_type || "—" %></dd></div>
+        <div><dt>Size</dt><dd class="tabular-nums"><%= @document.human_size %></dd></div>
+        <div><dt>Sorted path</dt><dd class="mono" style="font-size:0.7rem;word-break:break-all"><%= @document.relative_path || "—" %></dd></div>
+        <div><dt>Classified</dt><dd style="font-size:0.8rem"><%= @document.classified_at&.strftime("%Y-%m-%d %H:%M") || "—" %></dd></div>
+        <div><dt>Created</dt><dd style="font-size:0.8rem"><%= @document.created_at.strftime("%Y-%m-%d %H:%M") %></dd></div>
+      </dl>
+    </section>
+
+    <section class="card card-pad">
+      <p class="eyebrow">File</p>
+      <h2 class="display" style="font-size:1.1rem;margin:0.35rem 0 0.75rem">Move to category</h2>
+      <%= form_with url: assign_document_path(@document), method: :post, class: "field-stack" do %>
+        <%= select_tag :category_id, options_from_collection_for_select(Category.ordered, :id, :name, @document.category_id) %>
+        <%= submit_tag "Assign & sort", class: "btn btn-dark btn-block" %>
+      <% end %>
+    </section>
+
+    <%= button_to "Delete document", document_path(@document), method: :delete,
+          data: { turbo_confirm: "Delete this document?" },
+          class: "btn btn-danger btn-block" %>
+  </div>
+</div>

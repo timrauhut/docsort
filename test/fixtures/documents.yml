@@ -1,0 +1,35 @@
+invoice_doc:
+  title: Sample Invoice
+  original_filename: invoice-001.pdf
+  status: classified
+  summary: A sample invoice
+  extracted_text: Invoice total due
+  content_type: application/pdf
+  byte_size: 1024
+  confidence: 0.9
+  tags: invoice
+  source: web
+  relative_path: finance/invoices/invoice-001.pdf
+  category: invoices
+  classified_at: 2026-07-19 12:00:00
+  error_message:
+  metadata: {}
+  classifier_used: keywords
+
+pending_doc:
+  title: Pending File
+  original_filename: notes.txt
+  status: pending
+  summary:
+  extracted_text:
+  content_type: text/plain
+  byte_size: 12
+  confidence:
+  tags:
+  source: webdav
+  relative_path:
+  category:
+  classified_at:
+  error_message:
+  metadata: {}
+  classifier_used:

@@ -1,0 +1,127 @@
+# =============================================================================
+# DocSort — Kamal deploy configuration
+# Docs: https://kamal-deploy.org  ·  See DEPLOY.md for full walkthrough
+# =============================================================================
+#
+# Raspberry Pi (LAN):
+#   bin/kamal-setup     # first time
+#   bin/kamal-deploy    # subsequent releases
+#   bin/kamal-ollama    # pull / manage the LLM model
+#
+# =============================================================================
+
+service: docsort
+
+# Local registry on the Pi (no Docker Hub account required)
+image: docsort
+
+# -----------------------------------------------------------------------------
+# Servers
+# -----------------------------------------------------------------------------
+servers:
+  web:
+    - 192.168.0.1
+
+# -----------------------------------------------------------------------------
+# Proxy / TLS (Kamal proxy)
+# -----------------------------------------------------------------------------
+# LAN deploy by IP — no public hostname / Let's Encrypt yet.
+proxy:
+  ssl: false
+  host: 192.168.0.1
+  healthcheck:
+    path: /up
+    interval: 3
+    timeout: 5
+
+# -----------------------------------------------------------------------------
+# Container registry (Kamal local registry on the server)
+# -----------------------------------------------------------------------------
+registry:
+  server: localhost:5555
+
+# -----------------------------------------------------------------------------
+# Application environment
+# -----------------------------------------------------------------------------
+env:
+  secret:
+    - RAILS_MASTER_KEY
+    - WEBDAV_PASSWORD
+  clear:
+    RAILS_ENV: production
+    RAILS_LOG_LEVEL: info
+
+    # Jobs run inside Puma (no separate job container required)
+    SOLID_QUEUE_IN_PUMA: true
+
+    # Ollama accessory on Kamal's private Docker network
+    # Hostname: <service>-<accessory> → docsort-ollama
+    OLLAMA_HOST: http://docsort-ollama:11434
+    # Pi-friendly default; override later with a larger model if RAM allows
+    OLLAMA_MODEL: llama3.2:1b
+    OLLAMA_TIMEOUT: 600
+
+    WEBDAV_USERNAME: docsort
+
+    DOCSORT_SORTED_ROOT: /rails/storage/sorted
+    DOCSORT_INBOX_ROOT: /rails/storage/inbox
+
+    # Seed default categories on first boot if the DB is empty
+    DOCSORT_AUTO_SEED: true
+
+    ASSUME_SSL: false
+    FORCE_SSL: false
+
+# -----------------------------------------------------------------------------
+# Convenience aliases → bin/kamal <alias>
+# -----------------------------------------------------------------------------
+aliases:
+  console: app exec --interactive --reuse "bin/rails console"
+  shell: app exec --interactive --reuse "bash"
+  logs: app logs -f
+  dbc: app exec --interactive --reuse "bin/rails dbconsole --include-password"
+  seed: app exec "bin/rails db:seed"
+  ollama-pull: accessory exec ollama -- "ollama pull llama3.2:1b"
+  ollama-pull-small: accessory exec ollama -- "ollama pull llama3.2:1b"
+  ollama-list: accessory exec ollama -- "ollama list"
+  ollama-logs: accessory logs ollama -f
+  ollama-shell: accessory exec ollama --interactive --reuse -- "bash"
+
+# -----------------------------------------------------------------------------
+# Persistent volumes
+# -----------------------------------------------------------------------------
+volumes:
+  # SQLite DBs, Active Storage blobs, sorted tree, WebDAV inbox
+  - "docsort_storage:/rails/storage"
+
+asset_path: /rails/public/assets
+
+# -----------------------------------------------------------------------------
+# Image builder — native arm64 from Apple Silicon / Docker Desktop
+# -----------------------------------------------------------------------------
+builder:
+  arch: arm64
+  args:
+    RUBY_VERSION: 4.0.6
+
+# SSH to Pi (custom port + non-root user with passwordless sudo)
+ssh:
+  user: pi
+  port: 22
+  keys:
+    - "~/.ssh/id_ed25519"
+
+# -----------------------------------------------------------------------------
+# Accessories — Ollama (local LLM)
+# -----------------------------------------------------------------------------
+accessories:
+  ollama:
+    image: ollama/ollama:latest
+    host: 192.168.0.1
+    # Host loopback for SSH tunneling / debug (app uses Docker DNS)
+    port: "127.0.0.1:11434:11434"
+    directories:
+      - ollama_data:/root/.ollama
+    env:
+      clear:
+        OLLAMA_KEEP_ALIVE: 24h

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "==> [post-deploy] ${KAMAL_PERFORMER:-someone} shipped ${KAMAL_VERSION:-?} in ${KAMAL_RUNTIME:-?}s"
+echo "    hosts: ${KAMAL_HOSTS:-}"
+echo ""
+echo "Next steps (if first deploy):"
+echo "  bin/kamal ollama-pull          # download LLM weights on the server"
+echo "  bin/kamal ollama-list          # verify models"
+echo "  bin/kamal app exec 'bin/rails db:seed'   # if categories missing"
+echo "  open http://<server>/   or https://<your-host>/"

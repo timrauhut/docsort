@@ -1,0 +1,59 @@
+<div class="data-table-wrap">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Document</th>
+        <th>Issuer</th>
+        <th>Category</th>
+        <th>Status</th>
+        <th>Source</th>
+        <th>Conf.</th>
+        <th>Size</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if documents.empty? %>
+        <tr>
+          <td colspan="8">
+            <div class="empty-state">No documents match your filters.</div>
+          </td>
+        </tr>
+        <%# colspan adjusted for issuer column %>
+      <% else %>
+        <% documents.each do |doc| %>
+          <tr>
+            <td>
+              <%= link_to doc.display_title, doc, data: { turbo_frame: "_top" } %>
+              <div class="list-meta truncate" style="max-width:16rem"><%= doc.original_filename %></div>
+            </td>
+            <td>
+              <% if doc.issuer.present? %>
+                <span class="issuer-chip" style="padding:0.2rem 0.55rem;font-size:0.72rem"><%= doc.issuer.truncate(24) %></span>
+              <% else %>
+                <span style="color:var(--ink-faint)">—</span>
+              <% end %>
+            </td>
+            <td>
+              <% if doc.category %>
+                <span class="inline-flex items-center gap-2">
+                  <%= category_swatch(doc.category) %>
+                  <span style="color:var(--ink)"><%= doc.category.name %></span>
+                </span>
+              <% else %>
+                <span style="color:var(--ink-faint)">—</span>
+              <% end %>
+            </td>
+            <td><span class="<%= doc.status_badge_class %>"><%= doc.status %></span></td>
+            <td><span class="pill pill-soft"><%= doc.source %></span></td>
+            <td class="tabular-nums"><%= confidence_label(doc.confidence) %></td>
+            <td class="tabular-nums"><%= doc.human_size %></td>
+            <td style="text-align:right">
+              <%= link_to "Open", doc, class: "card-link", data: { turbo_frame: "_top" } %>
+            </td>
+          </tr>
+        <% end %>
+      <% end %>
+    </tbody>
+  </table>
+</div>
