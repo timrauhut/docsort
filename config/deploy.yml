@@ -66,6 +66,10 @@ env:
 
     DOCSORT_SORTED_ROOT: /rails/storage/sorted
     DOCSORT_INBOX_ROOT: /rails/storage/inbox
+    # PDF OCR for classification (tesseract + pdftoppm in image). auto|all|off
+    DOCSORT_OCR_MODE: all
+    DOCSORT_OCR_LANGS: eng+deu
+    DOCSORT_CLASSIFY_MAX_CHARS: "12000"
 
     # Seed categories + admin user if missing
     DOCSORT_AUTO_SEED: true

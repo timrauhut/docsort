@@ -90,7 +90,7 @@ storage/sorted/unsorted/
 
 ## How classification works
 
-1. **Text extraction** — PDF (via `pdf-reader`), plain text / markdown / code, else filename cues  
+1. **Text extraction** — PDF: embedded text on **all pages**, plus **OCR** (Tesseract + Poppler) per page for scans; plain text / images; filename cues  
 2. **Rules** — active `ClassificationRule` regexes (highest priority first)  
 3. **Ollama** — JSON classification against the category catalog  
 4. **Keywords** — fallback scoring on category keyword lists  

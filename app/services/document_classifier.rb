@@ -122,8 +122,8 @@ class DocumentClassifier
       filename: @document.original_filename,
       content_type: @document.content_type,
       heuristic_issuer: issuer_info[:issuer],
-      # Keep prompt small for Pi / small models (faster, less rambling)
-      document_text: text.to_s.truncate(4000)
+      # Multi-page OCR can be long; keep a large but bounded window for Pi models
+      document_text: text_for_model(text)
     }.to_json
 
     parsed = @ollama.chat(system: system, user: user, format_json: true)
@@ -180,6 +180,18 @@ class DocumentClassifier
       classifier_used: "keywords",
       raw: { scores: scores.map { |c, s| [ c.slug, s ] }.to_h }
     )
+  end
+
+  # Prefer head of the document (letterhead / page 1) but include a tail sample
+  # so later pages still contribute when the extract is huge.
+  def text_for_model(text)
+    full = text.to_s
+    limit = ENV.fetch("DOCSORT_CLASSIFY_MAX_CHARS", "12000").to_i
+    return full if full.length <= limit
+
+    head = (limit * 0.75).to_i
+    tail = limit - head - 32
+    "#{full[0, head]}\n\n[...]\n\n#{full[-tail, tail]}"
   end
 
   def maybe_promote_issuer_category!(result)

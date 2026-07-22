@@ -57,6 +57,10 @@ module Docsort
     # auto-create categories under storage/sorted/issuers/<brand>/
     config.x.auto_create_issuer_categories =
       ActiveModel::Type::Boolean.new.cast(ENV.fetch("DOCSORT_AUTO_ISSUER_CATEGORIES", "true"))
+
+    # PDF OCR: all (every page) | auto (sparse only) | off — needs tesseract + pdftoppm
+    config.x.ocr.mode = ENV.fetch("DOCSORT_OCR_MODE", "all")
+    config.x.ocr.langs = ENV.fetch("DOCSORT_OCR_LANGS", "eng+deu")
   end
 end
 
