@@ -26,7 +26,22 @@ module ApplicationHelper
   def category_swatch(category, size: 10)
     return "" unless category
 
-    content_tag(:span, "", class: "inline-block rounded-full shrink-0",
-      style: "width:#{size}px;height:#{size}px;background:#{category.color};box-shadow:0 0 0 2px rgba(26,22,18,0.06)")
+    content_tag(:span, "", class: "cat-swatch shrink-0",
+      style: "--cat:#{category.color};width:#{size}px;height:#{size}px")
+  end
+
+  # Soft tinted pill (ink text) — matches chartreuse/paper layout better than solid neon fills
+  def category_pill(category, label: nil)
+    return "" unless category
+
+    content_tag(:span, label || category.name, class: "pill pill-cat",
+      style: "--cat:#{category.color}")
+  end
+
+  def category_stripe_style(category)
+    return "" unless category
+
+    "--cat:#{category.color}"
   end
 end
+

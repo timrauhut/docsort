@@ -11,7 +11,7 @@ class CategoriesController < ApplicationController
   end
 
   def new
-    @category = Category.new(auto_create: true, color: "#6366f1")
+    @category = Category.new(auto_create: true, color: "#5c5a52")
   end
 
   def create

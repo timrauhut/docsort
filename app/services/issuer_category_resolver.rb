@@ -53,12 +53,11 @@ class IssuerCategoryResolver
   end
 
   def color_for(name)
-    # Stable pastel-ish hex from name hash
+    # Stable muted tones that sit with buzz.xyz chartreuse/ink UI
     hue = name.each_byte.sum * 37 % 360
-    # Convert HSL-ish to hex-ish fixed palette
     palette = %w[
-      #0f766e #b45309 #7c3aed #be123c #0369a1
-      #4d7c0f #c2410c #6d28d9 #0e7490 #a16207
+      #5b7c99 #3d7a6a #6b5f7a #8a7a32 #5a6570
+      #7a5c5c #5c5a52 #6a7a5a #7a6a4a #4a6a7a
     ]
     palette[hue % palette.length]
   end
