@@ -9,8 +9,9 @@ invoice_doc:
   confidence: 0.9
   tags: invoice
   source: web
-  relative_path: finance/invoices/invoice-001.pdf
+  relative_path: admin/finance/invoices/invoice-001.pdf
   category: invoices
+  user: admin
   classified_at: 2026-07-19 12:00:00
   error_message:
   metadata: {}
@@ -29,6 +30,7 @@ pending_doc:
   source: webdav
   relative_path:
   category:
+  user: alice
   classified_at:
   error_message:
   metadata: {}

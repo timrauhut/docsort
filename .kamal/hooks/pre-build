@@ -8,14 +8,15 @@ if [[ ! -f config/master.key ]]; then
   exit 1
 fi
 
-if [[ -z "${WEBDAV_PASSWORD:-}" ]]; then
-  echo "ERROR: WEBDAV_PASSWORD is not set in the environment." >&2
-  echo "  export WEBDAV_PASSWORD='your-strong-password'" >&2
+ADMIN_PASS="${DOCSORT_ADMIN_PASSWORD:-${WEBDAV_PASSWORD:-}}"
+if [[ -z "$ADMIN_PASS" ]]; then
+  echo "ERROR: DOCSORT_ADMIN_PASSWORD (or WEBDAV_PASSWORD) is not set." >&2
+  echo "  export DOCSORT_ADMIN_PASSWORD='your-strong-password'" >&2
   exit 1
 fi
 
-if [[ "$WEBDAV_PASSWORD" == "change-me-in-production" || "$WEBDAV_PASSWORD" == "upload123" ]]; then
-  echo "WARNING: WEBDAV_PASSWORD looks like a default/dev password. Prefer a strong secret." >&2
+if [[ "$ADMIN_PASS" == "change-me-in-production" || "$ADMIN_PASS" == "upload123" || "$ADMIN_PASS" == "changeme" ]]; then
+  echo "WARNING: admin password looks like a default/dev password. Prefer a strong secret." >&2
 fi
 
 # Ensure production assets can build (tailwind)

@@ -1,6 +1,12 @@
 Rails.application.routes.draw do
   root "dashboard#show"
 
+  get "login", to: "sessions#new"
+  post "login", to: "sessions#create"
+  delete "logout", to: "sessions#destroy"
+
+  resources :users, except: %i[show]
+
   resources :documents do
     collection do
       get :autocomplete
@@ -13,10 +19,9 @@ Rails.application.routes.draw do
     end
   end
 
-
   resources :categories
 
-  # WebDAV — Finder, Cyberduck, curl, scanners, mobile clients
+  # WebDAV — Finder, Cyberduck, scanners, curl (per-user Basic auth)
   # Rails' via: :all only includes standard HTTP verbs, so list WebDAV methods explicitly.
   webdav_methods = %i[get head put post delete options propfind proppatch mkcol copy move lock unlock]
   match "webdav", to: "webdav#handle", via: webdav_methods

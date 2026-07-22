@@ -4,11 +4,12 @@ class DocumentsController < ApplicationController
   def index
     @categories = Category.ordered
     @documents = filtered_documents.limit(200)
+    scope = current_user.documents
     @stats = {
-      total: Document.count,
-      pending: Document.pending.count,
-      classified: Document.classified.count,
-      failed: Document.failed.count
+      total: scope.count,
+      pending: scope.pending.count,
+      classified: scope.classified.count,
+      failed: scope.failed.count
     }
   end
 
@@ -21,7 +22,7 @@ class DocumentsController < ApplicationController
   end
 
   def new
-    @document = Document.new
+    @document = current_user.documents.new
     @categories = Category.ordered
   end
 
@@ -41,7 +42,8 @@ class DocumentsController < ApplicationController
         io: uploaded.tempfile,
         filename: uploaded.original_filename,
         source: "web",
-        content_type: uploaded.content_type
+        content_type: uploaded.content_type,
+        user: current_user
       ).call
     end
 
@@ -126,11 +128,11 @@ class DocumentsController < ApplicationController
   private
 
   def set_document
-    @document = Document.find(params[:id])
+    @document = current_user.documents.find(params[:id])
   end
 
   def filtered_documents
-    scope = Document.includes(:category).recent
+    scope = current_user.documents.includes(:category).recent
     scope = scope.by_category(params[:category_id]) if params[:category_id].present?
     scope = scope.where(status: params[:status]) if params[:status].present?
     scope = scope.search(params[:q]) if params[:q].present?
@@ -141,4 +143,3 @@ class DocumentsController < ApplicationController
     params.require(:document).permit(:title, :summary, :tags, :category_id, :status)
   end
 end
-

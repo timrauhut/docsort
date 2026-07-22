@@ -1,4 +1,34 @@
-puts "Seeding DocSort categories…"
+puts "Seeding DocSort…"
+
+# --- Admin user (same credentials for web UI + WebDAV) ---
+admin_username = Rails.application.config.x.admin.username
+admin_password = Rails.application.config.x.admin.password
+
+if User.none?
+  admin = User.create!(
+    username: admin_username,
+    password: admin_password,
+    password_confirmation: admin_password,
+    admin: true
+  )
+  admin.ensure_storage!
+  puts "  ✓ admin user “#{admin.username}” (web + WebDAV)"
+  if admin_password == "changeme"
+    puts "  ! default password “changeme” — change it after first login"
+  end
+else
+  puts "  · users present (#{User.count}) — skip admin create"
+end
+
+if (orphan_count = Document.where(user_id: nil).count).positive?
+  owner = User.find_by(admin: true) || User.order(:id).first
+  if owner
+    Document.where(user_id: nil).update_all(user_id: owner.id)
+    puts "  ✓ assigned #{orphan_count} orphan documents to #{owner.username}"
+  end
+end
+
+puts "Seeding categories…"
 
 categories = [
   {
@@ -79,8 +109,10 @@ categories.each do |attrs|
   category = Category.find_or_initialize_by(slug: attrs[:slug])
   category.assign_attributes(attrs.merge(auto_create: true))
   category.save!
-  category.ensure_directory!
-  puts "  ✓ #{category.name} → storage/sorted/#{category.directory_path}"
+  User.find_each do |user|
+    FileUtils.mkdir_p(File.join(user.sorted_root, category.directory_path))
+  end
+  puts "  ✓ #{category.name} → sorted/<user>/#{category.directory_path}"
 end
 
 # Example high-priority rules
@@ -102,5 +134,6 @@ end
 
 FileUtils.mkdir_p(Rails.application.config.x.inbox_root)
 FileUtils.mkdir_p(Rails.application.config.x.sorted_root)
+User.find_each(&:ensure_storage!)
 
-puts "Done. #{Category.count} categories ready."
+puts "Done. #{User.count} users, #{Category.count} categories."

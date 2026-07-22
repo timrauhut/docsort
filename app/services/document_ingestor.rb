@@ -1,16 +1,20 @@
 # Creates a Document from an uploaded IO (web form or WebDAV).
 class DocumentIngestor
-  def initialize(io:, filename:, source:, content_type: nil)
+  def initialize(io:, filename:, source:, user:, content_type: nil)
     @io = io
     @filename = File.basename(filename.to_s)
     @source = source
+    @user = user
     @content_type = content_type
   end
 
   def call
     raise ArgumentError, "filename required" if @filename.blank?
+    raise ArgumentError, "user required" if @user.blank?
 
-    document = Document.create!(
+    @user.ensure_storage!
+
+    document = @user.documents.create!(
       original_filename: @filename,
       title: File.basename(@filename, ".*").tr("_-", " ").squeeze(" ").strip.titleize,
       status: "pending",
@@ -30,7 +34,6 @@ class DocumentIngestor
       content_type: document.file.content_type.presence || document.content_type
     )
 
-    # after_create_commit only fires once; if attach happens after create, enqueue now
     ClassifyDocumentJob.perform_later(document.id) unless document.status == "processing"
 
     document

@@ -1,0 +1,13 @@
+<% content_for :title, "New user · DocSort" %>
+
+<div class="page-header">
+  <div>
+    <p class="eyebrow">Admin</p>
+    <h1 class="display" style="font-size:1.6rem;margin:0.2rem 0 0">New user</h1>
+  </div>
+  <%= link_to "← Users", users_path, class: "card-link" %>
+</div>
+
+<section class="card card-pad" style="max-width:28rem">
+  <%= render "form", user: @user %>
+</section>

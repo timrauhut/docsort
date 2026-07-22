@@ -27,11 +27,12 @@ if [ "$run_db_prepare" = true ]; then
 
   if [ "${DOCSORT_AUTO_SEED:-true}" = "true" ]; then
     ./bin/rails runner '
-      if Category.count.zero?
-        puts "[entrypoint] No categories — loading db/seeds.rb"
+      need_seed = Category.count.zero? || User.count.zero?
+      if need_seed
+        puts "[entrypoint] Seeding (categories=#{Category.count}, users=#{User.count})"
         load Rails.root.join("db/seeds.rb")
       else
-        puts "[entrypoint] Categories present (#{Category.count}) — skip seed"
+        puts "[entrypoint] Categories=#{Category.count}, users=#{User.count} — skip seed"
       end
     '
   fi

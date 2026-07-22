@@ -46,7 +46,7 @@ registry:
 env:
   secret:
     - RAILS_MASTER_KEY
-    - WEBDAV_PASSWORD
+    - DOCSORT_ADMIN_PASSWORD
   clear:
     RAILS_ENV: production
     RAILS_LOG_LEVEL: info
@@ -61,12 +61,13 @@ env:
     OLLAMA_MODEL: llama3.2:1b
     OLLAMA_TIMEOUT: 600
 
-    WEBDAV_USERNAME: docsort
+    # Bootstrap admin username (password is DOCSORT_ADMIN_PASSWORD secret)
+    DOCSORT_ADMIN_USERNAME: admin
 
     DOCSORT_SORTED_ROOT: /rails/storage/sorted
     DOCSORT_INBOX_ROOT: /rails/storage/inbox
 
-    # Seed default categories on first boot if the DB is empty
+    # Seed categories + admin user if missing
     DOCSORT_AUTO_SEED: true
 
     ASSUME_SSL: false
