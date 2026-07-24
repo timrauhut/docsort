@@ -25,10 +25,13 @@ servers:
 # -----------------------------------------------------------------------------
 # Proxy / TLS (Kamal proxy)
 # -----------------------------------------------------------------------------
-# LAN deploy by IP — no public hostname / Let's Encrypt yet.
+# LAN: IP + local names (mDNS docsort.local; optional bare "docsort" via router/hosts)
 proxy:
   ssl: false
-  host: 192.168.178.158
+  hosts:
+    - 192.168.178.158
+    - docsort.local
+    - docsort
   healthcheck:
     path: /up
     interval: 3
