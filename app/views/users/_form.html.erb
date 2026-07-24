@@ -1,4 +1,4 @@
-<%= form_with model: user, local: true do |f| %>
+<%= form_with model: user, local: true, class: "auth-form user-form" do |f| %>
   <% if user.errors.any? %>
     <div class="flash flash-alert" role="alert">
       <ul style="margin:0;padding-left:1.1rem">
@@ -24,13 +24,16 @@
     <%= f.password_field :password_confirmation, class: "input", autocomplete: "new-password" %>
   </div>
 
-  <div class="field" style="display:flex;align-items:center;gap:0.5rem">
+  <label class="user-form__check">
     <%= f.check_box :admin %>
-    <%= f.label :admin, "Admin (can manage users)" %>
-  </div>
+    <span>
+      <strong>Admin</strong>
+      <span class="list-meta" style="margin:0">Can manage users and see the Users nav item</span>
+    </span>
+  </label>
 
-  <div style="margin-top:1.25rem">
-    <%= f.submit user.persisted? ? "Save user" : "Create user",
-          class: "btn btn-upload", style: "border:none;cursor:pointer;font:inherit" %>
+  <div class="actions-row" style="margin-top:1.25rem">
+    <%= f.submit user.persisted? ? "Save user" : "Create user", class: "btn btn-primary" %>
+    <%= link_to "Cancel", users_path, class: "btn btn-ghost" %>
   </div>
 <% end %>

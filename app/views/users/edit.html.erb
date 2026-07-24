@@ -1,13 +1,14 @@
 <% content_for :title, "Edit #{@user.username} · DocSort" %>
 
-<div class="page-header">
+<div class="page-hero">
   <div>
     <p class="eyebrow">Admin</p>
-    <h1 class="display" style="font-size:1.6rem;margin:0.2rem 0 0">Edit <%= @user.username %></h1>
+    <h1>Edit <%= @user.username %></h1>
+    <p class="lede">Update password or admin access for this account.</p>
   </div>
-  <%= link_to "← Users", users_path, class: "card-link" %>
+  <%= link_to "← Users", users_path, class: "btn btn-ghost btn-sm" %>
 </div>
 
-<section class="card card-pad" style="max-width:28rem">
+<section class="card card-pad user-form-card">
   <%= render "form", user: @user %>
 </section>
