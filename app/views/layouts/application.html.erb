@@ -68,7 +68,12 @@
 
       <main class="site-main<%= " site-main--auth" unless logged_in? %>">
         <% flash.each do |type, message| %>
-          <div class="<%= flash_class(type) %>" role="status"><%= message %></div>
+          <div
+            class="<%= flash_class(type) %>"
+            role="status"
+            data-controller="flash"
+            data-flash-delay-value="5000"
+          ><%= message %></div>
         <% end %>
 
         <%= yield %>
