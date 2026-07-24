@@ -703,6 +703,121 @@ button.nav-pill.user-menu__out:focus-visible {
   color: var(--warn);
 }
 
+.pill-admin {
+  background: var(--buzz-ink);
+  color: var(--buzz-chartreuse);
+  font-weight: 650;
+}
+
+/* ——— Users admin list ——— */
+.user-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.user-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 1.25rem;
+  padding: 1rem 1.2rem;
+  border-radius: var(--radius);
+  background: #fff;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.15s ease, transform 0.12s ease, border-color 0.15s ease;
+}
+
+.user-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: rgb(35 30 30 / 16%);
+}
+
+.user-card__main {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+  flex: 1 1 14rem;
+}
+
+.user-card__avatar {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: var(--buzz-ink);
+  color: var(--buzz-chartreuse);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px rgb(215 215 46 / 45%);
+}
+
+.user-card__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.user-card__name {
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.user-card__sep {
+  margin: 0 0.25rem;
+  opacity: 0.45;
+}
+
+.user-card__actions {
+  flex-shrink: 0;
+}
+
+.user-card__delete-form {
+  display: inline;
+  margin: 0;
+}
+
+.user-form-card {
+  max-width: 28rem;
+}
+
+.user-form__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.user-form__check input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.user-form__check span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.user-form__check strong {
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
 /* Category color accents — soft wash, not neon solids */
 .cat-swatch {
   display: inline-block;

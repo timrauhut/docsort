@@ -1,29 +1,59 @@
 <% content_for :title, "Users · DocSort" %>
 
-<div class="page-header">
+<div class="page-hero">
   <div>
     <p class="eyebrow">Admin</p>
-    <h1 class="display" style="font-size:1.6rem;margin:0.2rem 0 0">Users</h1>
-    <p class="summary-body">Each person has their own documents, inbox, and sorted folders. Web UI and WebDAV use the same password.</p>
+    <h1>Users</h1>
+    <p class="lede">
+      Each person has their own documents, inbox, and sorted folders.
+      Web UI and WebDAV use the same password.
+    </p>
   </div>
-  <%= link_to "Add user", new_user_path, class: "btn btn-upload" %>
+  <%= link_to "Add user", new_user_path, class: "btn btn-primary" %>
 </div>
 
-<section class="card card-flush">
-  <% @users.each do |user| %>
-    <div class="list-row">
-      <div class="min-w-0">
-        <span class="font-semibold"><%= user.username %></span>
-        <% if user.admin? %><span class="pill pill-soft" style="margin-left:0.4rem">admin</span><% end %>
-        <p class="list-meta"><%= pluralize(user.documents.count, "document") %></p>
-      </div>
-      <div class="flex gap-2 shrink-0">
-        <%= link_to "Edit", edit_user_path(user), class: "card-link" %>
-        <% unless user == current_user %>
-          <%= button_to "Delete", user_path(user), method: :delete, class: "card-link",
-                form: { data: { turbo_confirm: "Delete user “#{user.username}” and all their documents?" } } %>
-        <% end %>
-      </div>
-    </div>
-  <% end %>
-</section>
+<% if @users.empty? %>
+  <section class="card card-pad empty-state">
+    <p>No users yet.</p>
+    <%= link_to "Add the first user", new_user_path, class: "btn btn-primary" %>
+  </section>
+<% else %>
+  <div class="user-grid">
+    <% @users.each do |user| %>
+      <article class="user-card">
+        <div class="user-card__main">
+          <span class="user-card__avatar" aria-hidden="true">
+            <%= user.username.to_s.first.upcase %>
+          </span>
+          <div class="min-w-0">
+            <div class="user-card__title">
+              <span class="user-card__name"><%= user.username %></span>
+              <% if user.admin? %>
+                <span class="pill pill-admin">Admin</span>
+              <% end %>
+              <% if user == current_user %>
+                <span class="pill pill-soft">You</span>
+              <% end %>
+            </div>
+            <p class="list-meta">
+              <%= pluralize(user.documents.count, "document") %>
+              <span class="user-card__sep" aria-hidden="true">·</span>
+              <span class="mono">storage/sorted/<%= user.username %>/</span>
+            </p>
+          </div>
+        </div>
+        <div class="actions-row user-card__actions">
+          <%= link_to "Edit", edit_user_path(user), class: "btn btn-ghost btn-sm" %>
+          <% unless user == current_user %>
+            <%= button_to "Delete", user_path(user), method: :delete,
+                  class: "btn btn-danger btn-sm",
+                  form: {
+                    class: "user-card__delete-form",
+                    data: { turbo_confirm: "Delete user “#{user.username}” and all their documents?" }
+                  } %>
+          <% end %>
+        </div>
+      </article>
+    <% end %>
+  </div>
+<% end %>
