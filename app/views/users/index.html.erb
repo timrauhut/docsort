@@ -2,25 +2,34 @@
 
 <div class="page-hero">
   <div>
-    <p class="eyebrow">Admin</p>
+    <p class="eyebrow"><%= current_user.admin? ? "Admin" : "People" %></p>
     <h1>Users</h1>
     <p class="lede">
-      Each person has their own documents, inbox, and sorted folders.
-      Web UI and WebDAV use the same password.
+      <% if current_user.admin? %>
+        Each person has their own documents, inbox, and sorted folders.
+        Web UI and WebDAV use the same password. Follow people you work with.
+      <% else %>
+        Follow other accounts on this DocSort instance. You can unfollow anytime.
+      <% end %>
     </p>
   </div>
-  <%= link_to "Add user", new_user_path, class: "btn btn-primary" %>
+  <% if current_user.admin? %>
+    <%= link_to "Add user", new_user_path, class: "btn btn-primary" %>
+  <% end %>
 </div>
 
 <% if @users.empty? %>
   <section class="card card-pad empty-state">
     <p>No users yet.</p>
-    <%= link_to "Add the first user", new_user_path, class: "btn btn-primary" %>
+    <% if current_user.admin? %>
+      <%= link_to "Add the first user", new_user_path, class: "btn btn-primary" %>
+    <% end %>
   </section>
 <% else %>
   <div class="user-grid">
     <% @users.each do |user| %>
-      <article class="user-card">
+      <% following = @following_ids.include?(user.id) %>
+      <article class="user-card<%= " user-card--following" if following && user != current_user %>">
         <div class="user-card__main">
           <span class="user-card__avatar" aria-hidden="true">
             <%= user.username.to_s.first.upcase %>
@@ -33,24 +42,39 @@
               <% end %>
               <% if user == current_user %>
                 <span class="pill pill-soft">You</span>
+              <% elsif following %>
+                <span class="pill pill-following">Following</span>
               <% end %>
             </div>
             <p class="list-meta">
-              <%= pluralize(user.documents.count, "document") %>
+              <%= pluralize(user.documents.size, "document") %>
               <span class="user-card__sep" aria-hidden="true">·</span>
               <span class="mono">storage/sorted/<%= user.username %>/</span>
             </p>
           </div>
         </div>
         <div class="actions-row user-card__actions">
-          <%= link_to "Edit", edit_user_path(user), class: "btn btn-ghost btn-sm" %>
-          <% unless user == current_user %>
-            <%= button_to "Delete", user_path(user), method: :delete,
-                  class: "btn btn-danger btn-sm",
-                  form: {
-                    class: "user-card__delete-form",
-                    data: { turbo_confirm: "Delete user “#{user.username}” and all their documents?" }
-                  } %>
+          <% if user != current_user %>
+            <% if following %>
+              <%= button_to "Unfollow", user_follow_path(user), method: :delete,
+                    class: "btn btn-ghost btn-sm",
+                    form: { class: "user-card__follow-form" } %>
+            <% else %>
+              <%= button_to "Follow", user_follow_path(user), method: :post,
+                    class: "btn btn-primary btn-sm",
+                    form: { class: "user-card__follow-form" } %>
+            <% end %>
+          <% end %>
+          <% if current_user.admin? %>
+            <%= link_to "Edit", edit_user_path(user), class: "btn btn-ghost btn-sm" %>
+            <% unless user == current_user %>
+              <%= button_to "Delete", user_path(user), method: :delete,
+                    class: "btn btn-danger btn-sm",
+                    form: {
+                      class: "user-card__delete-form",
+                      data: { turbo_confirm: "Delete user “#{user.username}” and all their documents?" }
+                    } %>
+            <% end %>
           <% end %>
         </div>
       </article>
