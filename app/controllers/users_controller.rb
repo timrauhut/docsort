@@ -1,9 +1,11 @@
 class UsersController < ApplicationController
-  before_action :require_admin
+  before_action :require_admin, except: %i[index]
   before_action :set_user, only: %i[edit update destroy]
 
   def index
-    @users = User.ordered
+    @users = User.ordered.includes(:documents)
+    # Avoid N+1 for follow buttons
+    @following_ids = current_user.following.pluck(:id).to_set
   end
 
   def new
