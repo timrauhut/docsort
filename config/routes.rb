@@ -5,9 +5,7 @@ Rails.application.routes.draw do
   post "login", to: "sessions#create"
   delete "logout", to: "sessions#destroy"
 
-  resources :users, except: %i[show] do
-    resource :follow, only: %i[create destroy]
-  end
+  resources :users, except: %i[show]
 
   resources :documents do
     collection do

@@ -709,13 +709,6 @@ button.nav-pill.user-menu__out:focus-visible {
   font-weight: 650;
 }
 
-.pill-following {
-  background: var(--accent-soft);
-  color: var(--ink);
-  border: 1px solid rgb(35 30 30 / 10%);
-  font-weight: 650;
-}
-
 /* ——— Users admin list ——— */
 .user-grid {
   display: flex;
@@ -788,15 +781,9 @@ button.nav-pill.user-menu__out:focus-visible {
   flex-shrink: 0;
 }
 
-.user-card__delete-form,
-.user-card__follow-form {
+.user-card__delete-form {
   display: inline;
   margin: 0;
-}
-
-.user-card--following {
-  border-color: rgb(215 215 46 / 55%);
-  box-shadow: 0 0 0 1px rgb(215 215 46 / 25%), var(--shadow-sm);
 }
 
 .user-form-card {
