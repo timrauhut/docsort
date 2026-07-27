@@ -42,7 +42,9 @@
                 <%= nav_link "Home", root_path %>
                 <%= nav_link "Documents", documents_path %>
                 <%= nav_link "Categories", categories_path %>
-                <%= nav_link "Users", users_path %>
+                <% if current_user.admin? %>
+                  <%= nav_link "Users", users_path %>
+                <% end %>
               </nav>
               <%= link_to new_document_path, class: "btn btn-upload", "aria-label": "Upload documents" do %>
                 <span class="btn-upload__icon" aria-hidden="true">

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_27_092305) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_22_185037) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -95,16 +95,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_27_092305) do
     t.index ["user_id"], name: "index_documents_on_user_id"
   end
 
-  create_table "follows", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.integer "followed_id", null: false
-    t.integer "follower_id", null: false
-    t.datetime "updated_at", null: false
-    t.index ["followed_id"], name: "index_follows_on_followed_id"
-    t.index ["follower_id", "followed_id"], name: "index_follows_on_follower_id_and_followed_id", unique: true
-    t.index ["follower_id"], name: "index_follows_on_follower_id"
-  end
-
   create_table "users", force: :cascade do |t|
     t.boolean "admin", default: false, null: false
     t.datetime "created_at", null: false
@@ -119,6 +109,4 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_27_092305) do
   add_foreign_key "classification_rules", "categories"
   add_foreign_key "documents", "categories"
   add_foreign_key "documents", "users"
-  add_foreign_key "follows", "users", column: "followed_id"
-  add_foreign_key "follows", "users", column: "follower_id"
 end
