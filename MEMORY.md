@@ -285,8 +285,10 @@ Sample rules: filename `invoice` / `receipt`.
 
 ## Related docs
 
+- `LLM-WIKI.md` — **agent-oriented project overview** (prefer for architecture)  
+- `AGENTS.md` — pointer for coding agents  
 - `README.md` — quick start  
 - `DEPLOY.md` — Kamal production  
-- `MEMORY.md` — this file  
+- `MEMORY.md` — this file (session handoff; may lag)  
 
 *End of memory dump.*
