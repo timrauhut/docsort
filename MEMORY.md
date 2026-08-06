@@ -286,9 +286,10 @@ Sample rules: filename `invoice` / `receipt`.
 ## Related docs
 
 - `LLM-WIKI.md` — **agent-oriented project overview** (prefer for architecture)  
+- `DEPLOY-AGENTS.md` — **how agents deploy to the Pi**  
 - `AGENTS.md` — pointer for coding agents  
 - `README.md` — quick start  
-- `DEPLOY.md` — Kamal production  
+- `DEPLOY.md` — Kamal production (human / first-time)  
 - `MEMORY.md` — this file (session handoff; may lag)  
 
 *End of memory dump.*
