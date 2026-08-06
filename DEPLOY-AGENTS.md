@@ -135,7 +135,7 @@ Only if Kamal has never been set up on the host:
 2. `export DOCSORT_ADMIN_PASSWORD='…'` (strong; ≤72 bytes for bcrypt).  
 3. `bin/kamal-doctor`  
 4. `bin/kamal-setup` **or** manual: install Docker on Pi, `bin/kamal setup`, boot ollama accessory.  
-5. Pull model: `bin/kamal accessory exec ollama -- "ollama pull llama3.2:latest"`  
+5. Pull model: `bin/kamal accessory exec ollama -- "ollama pull qwen2.5:3b"`
 6. Then use §2 for every later release.
 
 mDNS name `docsort.local` is published by systemd unit **`docsort-mdns.service`** on the Pi (`avahi-publish -a -R docsort.local 192.168.0.1`). Re-check if hostname resolution breaks after OS changes.
