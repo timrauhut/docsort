@@ -4,6 +4,7 @@ class Category < ApplicationRecord
 
   validates :name, :slug, :directory_path, presence: true
   validates :slug, uniqueness: true, format: { with: /\A[a-z0-9\-]+\z/ }
+  validate :directory_path_is_safe
 
   before_validation :generate_slug, if: -> { slug.blank? && name.present? }
   before_validation :default_directory_path, if: -> { directory_path.blank? && slug.present? }
@@ -17,13 +18,13 @@ class Category < ApplicationRecord
   def ensure_directory!
     return unless auto_create?
 
-    path = File.join(Rails.application.config.x.sorted_root, directory_path)
+    path = SafeStoragePath.resolve(Rails.application.config.x.sorted_root, directory_path)
     FileUtils.mkdir_p(path)
     path
   end
 
   def absolute_directory
-    File.join(Rails.application.config.x.sorted_root, directory_path)
+    SafeStoragePath.resolve(Rails.application.config.x.sorted_root, directory_path).to_s
   end
 
   private
@@ -34,5 +35,11 @@ class Category < ApplicationRecord
 
   def default_directory_path
     self.directory_path = slug
+  end
+
+  def directory_path_is_safe
+    return if directory_path.blank? || SafeStoragePath.safe_relative?(directory_path)
+
+    errors.add(:directory_path, "must be a relative path without empty, dot, or parent segments")
   end
 end

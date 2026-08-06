@@ -5,7 +5,9 @@ class WebdavController < ApplicationController
   include ActionController::HttpAuthentication::Basic::ControllerMethods
 
   skip_before_action :require_login
+  skip_before_action :require_secure_transport
   skip_before_action :verify_authenticity_token, raise: false
+  before_action :require_secure_webdav
   before_action :authenticate_webdav_user
   before_action :set_paths
 
@@ -40,6 +42,13 @@ class WebdavController < ApplicationController
     end
   end
 
+  def require_secure_webdav
+    return if request.ssl? || Rails.application.config.x.webdav.allow_insecure
+
+    response.headers["Upgrade"] = "TLS/1.2, HTTP/1.1"
+    render plain: "WebDAV requires HTTPS.", status: :upgrade_required
+  end
+
   def set_paths
     return if performed?
 
@@ -47,13 +56,10 @@ class WebdavController < ApplicationController
     @upload_root = Pathname.new(@webdav_user.inbox_root)
     FileUtils.mkdir_p(@upload_root)
 
-    candidate = @upload_root.join(relative).cleanpath
-    unless candidate.to_s.start_with?(@upload_root.to_s)
-      head :bad_request
-      return
-    end
-    @file_path = candidate
+    @file_path = SafeStoragePath.resolve(@upload_root, relative)
     @relative = relative
+  rescue SafeStoragePath::UnsafePath
+    head :bad_request
   end
 
   def handle_options
@@ -73,11 +79,15 @@ class WebdavController < ApplicationController
   end
 
   def handle_put
+    if request.content_length.to_i > Rails.application.config.x.max_upload_bytes
+      return render plain: upload_limit_message, status: :content_too_large
+    end
+
     FileUtils.mkdir_p(@file_path.dirname)
 
     File.open(@file_path, "wb") do |file|
-      body = request.body
-      file.write(body.respond_to?(:read) ? body.read : body.to_s)
+      copied = IO.copy_stream(request.body, file, Rails.application.config.x.max_upload_bytes + 1)
+      raise DocumentIngestor::UploadTooLarge, upload_limit_message if copied > Rails.application.config.x.max_upload_bytes
     end
 
     if @file_path.file? && @file_path.size.positive?
@@ -94,9 +104,16 @@ class WebdavController < ApplicationController
 
     Rails.logger.info("WebDAV PUT user=#{@webdav_user.username} path=#{@file_path} (#{@file_path.size} bytes)")
     head :created
+  rescue DocumentIngestor::UploadTooLarge => e
+    FileUtils.rm_f(@file_path)
+    render plain: e.message, status: :content_too_large
+  rescue DocumentIngestor::InvalidUpload => e
+    FileUtils.rm_f(@file_path)
+    render plain: e.message, status: :unsupported_media_type
   rescue StandardError => e
     Rails.logger.error("WebDAV PUT failed: #{e.message}")
-    render plain: e.message, status: :internal_server_error
+    FileUtils.rm_f(@file_path)
+    render plain: "Upload failed.", status: :internal_server_error
   end
 
   def handle_delete
@@ -153,11 +170,8 @@ class WebdavController < ApplicationController
 
     uri = URI.parse(header)
     relative = uri.path.to_s.sub(%r{\A/webdav/?}, "")
-    candidate = @upload_root.join(relative).cleanpath
-    return nil unless candidate.to_s.start_with?(@upload_root.to_s)
-
-    candidate
-  rescue URI::InvalidURIError
+    SafeStoragePath.resolve(@upload_root, relative)
+  rescue URI::InvalidURIError, SafeStoragePath::UnsafePath
     nil
   end
 
@@ -168,11 +182,12 @@ class WebdavController < ApplicationController
 
     Dir.children(@file_path).sort.each do |name|
       full = @file_path.join(name)
-      href = path.present? ? "/webdav/#{path}/#{name}" : "/webdav/#{name}"
+      href = webdav_href([ path.presence, name ].compact.join("/"))
+      safe_href = ERB::Util.html_escape(href)
       if full.directory?
-        rows << %(<li><a href="#{href}/">#{ERB::Util.html_escape(name)}/</a></li>)
+        rows << %(<li><a href="#{safe_href}/">#{ERB::Util.html_escape(name)}/</a></li>)
       else
-        rows << %(<li><a href="#{href}">#{ERB::Util.html_escape(name)}</a> (#{full.size} bytes)</li>)
+        rows << %(<li><a href="#{safe_href}">#{ERB::Util.html_escape(name)}</a> (#{full.size} bytes)</li>)
       end
     end
 
@@ -189,11 +204,11 @@ class WebdavController < ApplicationController
 
   def parent_url(path)
     parent = File.dirname(path)
-    parent == "." ? "/webdav/" : "/webdav/#{parent}/"
+    parent == "." ? "/webdav/" : "#{webdav_href(parent)}/"
   end
 
   def propfind_xml
-    href = "/webdav/#{@relative}"
+    href = webdav_href(@relative)
     xml = +%(<?xml version="1.0" encoding="utf-8"?>)
     xml << %(<D:multistatus xmlns:D="DAV:">)
     xml << resource_xml(href, @file_path)
@@ -201,7 +216,7 @@ class WebdavController < ApplicationController
     if @file_path.directory?
       Dir.children(@file_path).each do |name|
         child = @file_path.join(name)
-        child_href = href.end_with?("/") ? "#{href}#{name}" : "#{href}/#{name}"
+        child_href = webdav_href([ @relative.presence, name ].compact.join("/"))
         xml << resource_xml(child_href, child)
       end
     end
@@ -211,7 +226,7 @@ class WebdavController < ApplicationController
   end
 
   def resource_xml(href, path)
-    xml = +%(<D:response><D:href>#{href}</D:href><D:propstat><D:prop>)
+    xml = +%(<D:response><D:href>#{ERB::Util.html_escape(href)}</D:href><D:propstat><D:prop>)
     if path.directory?
       xml << %(<D:resourcetype><D:collection/></D:resourcetype>)
     else
@@ -223,5 +238,15 @@ class WebdavController < ApplicationController
     xml << %(<D:getlastmodified>#{path.mtime.httpdate}</D:getlastmodified>)
     xml << %(</D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>)
     xml
+  end
+
+  def webdav_href(path)
+    encoded = path.to_s.split("/").map { |segment| ERB::Util.url_encode(segment) }.join("/")
+    encoded.present? ? "/webdav/#{encoded}" : "/webdav/"
+  end
+
+  def upload_limit_message
+    megabytes = Rails.application.config.x.max_upload_bytes / 1.megabyte
+    "Upload exceeds the #{megabytes} MB limit."
   end
 end

@@ -1,4 +1,5 @@
 class CategoriesController < ApplicationController
+  before_action :require_admin, except: %i[index show]
   before_action :set_category, only: %i[show edit update destroy]
 
   def index
@@ -17,7 +18,7 @@ class CategoriesController < ApplicationController
   def create
     @category = Category.new(category_params)
     if @category.save
-      FileUtils.mkdir_p(File.join(current_user.sorted_root, @category.directory_path))
+      FileUtils.mkdir_p(SafeStoragePath.resolve(current_user.sorted_root, @category.directory_path))
       redirect_to categories_path, notice: "Category created and directory prepared."
     else
       render :new, status: :unprocessable_entity
@@ -29,7 +30,7 @@ class CategoriesController < ApplicationController
 
   def update
     if @category.update(category_params)
-      FileUtils.mkdir_p(File.join(current_user.sorted_root, @category.directory_path))
+      FileUtils.mkdir_p(SafeStoragePath.resolve(current_user.sorted_root, @category.directory_path))
       redirect_to @category, notice: "Category updated."
     else
       render :edit, status: :unprocessable_entity

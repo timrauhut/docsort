@@ -51,10 +51,26 @@ Override with env vars:
 | `WEBDAV_PASSWORD` | `upload123` | WebDAV auth |
 | `DOCSORT_SORTED_ROOT` | `storage/sorted` | Sorted tree |
 | `DOCSORT_INBOX_ROOT` | `storage/inbox` | WebDAV store |
+| `DOCSORT_MAX_UPLOAD_BYTES` | `104857600` | Per-file upload limit |
 
 Without Ollama, classification still works using **category keywords** and **ClassificationRules**.
 
 ## WebDAV
+
+Authenticated web sessions and WebDAV require HTTPS in production. Development
+allows loopback HTTP for convenience. Keep `DOCSORT_ALLOW_INSECURE_AUTH` and
+`DOCSORT_ALLOW_INSECURE_WEBDAV` disabled in production; they exist only for
+emergency recovery on a trusted LAN.
+
+Generate the gitignored LAN certificate before deployment:
+
+```bash
+bin/setup-lan-tls
+```
+
+Run `mkcert -install` once in an interactive terminal so macOS trusts the local
+CA, then install the printed `rootCA.pem` on other phones or computers that
+should trust `docsort.local`.
 
 | | |
 |--|--|

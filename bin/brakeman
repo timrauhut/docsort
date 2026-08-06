@@ -2,6 +2,7 @@
 require "rubygems"
 require "bundler/setup"
 
-ARGV.unshift("--ensure-latest")
+# Version freshness is managed by Bundler. `--ensure-latest` performs a network
+# metadata lookup and can crash offline before the security scan even starts.
 
 load Gem.bin_path("brakeman", "brakeman")

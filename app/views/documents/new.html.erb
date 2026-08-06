@@ -19,7 +19,7 @@
       </div>
       <p style="margin:0;font-family:var(--font-display);font-size:1.25rem;font-weight:550">Add files to your archive</p>
       <p style="margin:0.45rem 0 1.15rem;font-size:0.9rem;color:var(--ink-soft)">
-        PDF, text, Markdown, CSV, JSON · multi-select supported
+        PDF, text, Markdown, CSV, JSON, or images · up to <%= Rails.application.config.x.max_upload_bytes / 1.megabyte %> MB each
       </p>
       <%= file_field_tag "document[files][]", multiple: true, required: true %>
     </div>
@@ -35,7 +35,7 @@
     <p class="summary-body">
       Connect Finder or a phone client to
       <code class="mono" style="background:var(--paper);padding:0.1rem 0.4rem;border-radius:0.3rem">/webdav</code>
-      with user <strong>docsort</strong>.
+      with user <strong><%= current_user.username %></strong>. Production WebDAV requires HTTPS.
     </p>
   </div>
 </div>

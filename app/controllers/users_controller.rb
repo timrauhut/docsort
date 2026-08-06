@@ -12,6 +12,7 @@ class UsersController < ApplicationController
 
   def create
     @user = User.new(user_params)
+    assign_admin_flag(@user)
     if @user.save
       @user.ensure_storage!
       redirect_to users_path, notice: "User “#{@user.username}” created. They can sign in and use WebDAV with the same password."
@@ -27,7 +28,10 @@ class UsersController < ApplicationController
     attrs = user_params
     attrs = attrs.except(:password, :password_confirmation) if attrs[:password].blank?
 
-    if @user.update(attrs)
+    @user.assign_attributes(attrs)
+    assign_admin_flag(@user)
+
+    if @user.save
       @user.ensure_storage!
       redirect_to users_path, notice: "User “#{@user.username}” updated."
     else
@@ -58,6 +62,12 @@ class UsersController < ApplicationController
   end
 
   def user_params
-    params.require(:user).permit(:username, :password, :password_confirmation, :admin)
+    params.require(:user).permit(:username, :password, :password_confirmation)
+  end
+
+  def assign_admin_flag(user)
+    return unless params.require(:user).key?(:admin)
+
+    user.admin = ActiveModel::Type::Boolean.new.cast(params.require(:user)[:admin])
   end
 end
