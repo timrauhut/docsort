@@ -10,6 +10,7 @@ class Document < ApplicationRecord
   has_one_attached :file
 
   before_create :assign_uuid
+  after_destroy_commit :remove_sorted_copy
 
   validates :original_filename, presence: true
   validates :status, inclusion: { in: STATUSES }
@@ -82,5 +83,8 @@ class Document < ApplicationRecord
   def assign_uuid
     self.id ||= SecureRandom.uuid_v7
   end
-end
 
+  def remove_sorted_copy
+    SortedCopy.remove(self)
+  end
+end

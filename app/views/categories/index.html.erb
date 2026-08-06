@@ -6,7 +6,7 @@
     <h1>Categories</h1>
     <p class="lede">Shared categories map to folders under <span class="mono">storage/sorted/<%= current_user.username %>/</span>.</p>
   </div>
-  <%= link_to "New category", new_category_path, class: "btn btn-primary" %>
+  <%= link_to "New category", new_category_path, class: "btn btn-primary" if current_user.admin? %>
 </div>
 
 <div class="cat-grid">
@@ -31,7 +31,7 @@
       <% end %>
       <div class="actions-row" style="margin-top:1rem">
         <%= link_to "Open", category, class: "btn btn-ghost btn-sm" %>
-        <%= link_to "Edit", edit_category_path(category), class: "btn btn-ghost btn-sm" %>
+        <%= link_to "Edit", edit_category_path(category), class: "btn btn-ghost btn-sm" if current_user.admin? %>
       </div>
     </article>
   <% end %>

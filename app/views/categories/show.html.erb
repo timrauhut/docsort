@@ -10,7 +10,7 @@
     </div>
   </div>
   <div class="actions-row">
-    <%= link_to "Edit", edit_category_path(@category), class: "btn btn-ghost btn-sm" %>
+    <%= link_to "Edit", edit_category_path(@category), class: "btn btn-ghost btn-sm" if current_user.admin? %>
     <%= link_to "Back", categories_path, class: "btn btn-ghost btn-sm" %>
   </div>
 </div>

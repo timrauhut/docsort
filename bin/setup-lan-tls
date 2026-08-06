@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if ! command -v mkcert >/dev/null 2>&1; then
+  echo "mkcert is required. Install it with: brew install mkcert" >&2
+  exit 1
+fi
+
+mkdir -p config/tls
+mkcert \
+  -cert-file config/tls/docsort.pem \
+  -key-file config/tls/docsort-key.pem \
+  docsort.local docsort 192.168.178.158 localhost 127.0.0.1 ::1
+chmod 600 config/tls/docsort-key.pem
+
+echo "LAN TLS certificate ready: config/tls/docsort.pem"
+echo "Root CA for other devices: $(mkcert -CAROOT)/rootCA.pem"
+echo "If this Mac does not trust the CA yet, run: mkcert -install"

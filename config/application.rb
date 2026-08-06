@@ -44,6 +44,13 @@ module Docsort
     # Where auto-sorted document copies live (mirrored category tree)
     config.x.sorted_root = ENV.fetch("DOCSORT_SORTED_ROOT", Rails.root.join("storage", "sorted").to_s)
     config.x.inbox_root = ENV.fetch("DOCSORT_INBOX_ROOT", Rails.root.join("storage", "inbox").to_s)
+    config.x.max_upload_bytes = ENV.fetch("DOCSORT_MAX_UPLOAD_BYTES", 100.megabytes.to_s).to_i
+    config.x.allow_insecure_auth = ActiveModel::Type::Boolean.new.cast(
+      ENV.fetch("DOCSORT_ALLOW_INSECURE_AUTH", Rails.env.production? ? "false" : "true")
+    )
+    config.x.webdav.allow_insecure = ActiveModel::Type::Boolean.new.cast(
+      ENV.fetch("DOCSORT_ALLOW_INSECURE_WEBDAV", Rails.env.production? ? "false" : "true")
+    )
 
     # Bootstrap admin account (created on seed when no users exist)
     config.x.admin.username = ENV.fetch("DOCSORT_ADMIN_USERNAME", "admin").to_s.strip
@@ -63,4 +70,3 @@ module Docsort
     config.x.ocr.langs = ENV.fetch("DOCSORT_OCR_LANGS", "eng+deu")
   end
 end
-

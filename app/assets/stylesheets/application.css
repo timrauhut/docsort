@@ -66,9 +66,9 @@
   --shadow-lg: 0 18px 44px rgba(35, 30, 30, 0.14);
   --radius: 0.75rem;
   --radius-sm: 0.5rem;
-  --font-display: "Inter", "Avenir Next", "Segoe UI", system-ui, sans-serif;
-  --font-sans: "Inter", "Avenir Next", "Segoe UI", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", "SF Mono", ui-monospace, monospace;
+  --font-display: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "SF Mono", "Cascadia Mono", ui-monospace, monospace;
   --buzz-gradient-top: var(--buzz-chartreuse);
   --buzz-gradient-bottom: var(--buzz-blue);
   --code-bg: var(--buzz-ink-deep);

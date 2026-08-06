@@ -14,12 +14,19 @@ class DocumentOrganizer
     dir = target_directory(category)
     FileUtils.mkdir_p(dir)
 
-    target_name = unique_filename(dir, @document.original_filename)
+    previous_path = SortedCopy.path_for(@document)
+    target_name = target_filename(dir, previous_path)
     target_path = File.join(dir, target_name)
 
-    @document.file.blob.open do |tempfile|
-      FileUtils.cp(tempfile.path, target_path)
+    Tempfile.create([ "docsort-sort-", File.extname(target_name) ], dir) do |staging|
+      @document.file.blob.open do |source|
+        IO.copy_stream(source, staging)
+      end
+      staging.flush
+      FileUtils.mv(staging.path, target_path)
     end
+
+    previous_path.delete if previous_path&.file? && previous_path.to_s != target_path
 
     relative = Pathname.new(target_path).relative_path_from(
       Pathname.new(Rails.application.config.x.sorted_root)
@@ -31,13 +38,20 @@ class DocumentOrganizer
   private
 
   def target_directory(category)
-    base = File.join(@document.user.sorted_root, category.directory_path)
+    base = SafeStoragePath.resolve(@document.user.sorted_root, category.directory_path)
     # Nest under issuer when we have one and category is not already an issuer-* folder
     if @document.issuer.present? && !category.slug.to_s.start_with?("issuer-")
-      File.join(base, @document.issuer.parameterize)
+      SafeStoragePath.resolve(base, @document.issuer.parameterize)
     else
       base
     end
+  end
+
+  def target_filename(dir, previous_path)
+    base = File.basename(@document.original_filename.to_s)
+    return base if previous_path&.dirname == Pathname.new(dir) && previous_path.basename.to_s == base
+
+    unique_filename(dir, base)
   end
 
   def unique_filename(dir, original)

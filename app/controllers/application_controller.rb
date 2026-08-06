@@ -5,6 +5,7 @@ class ApplicationController < ActionController::Base
   # Changes to the importmap will invalidate the etag for HTML responses
   stale_when_importmap_changes
 
+  before_action :require_secure_transport
   before_action :require_login
 
   helper_method :current_user, :logged_in?
@@ -24,8 +25,15 @@ class ApplicationController < ActionController::Base
   def require_login
     return if logged_in?
 
-    session[:return_to] = request.fullpath if request.get?
+    session[:return_to] = request.fullpath if request.get? || request.head?
     redirect_to login_path, alert: "Please sign in to continue."
+  end
+
+  def require_secure_transport
+    return if request.ssl? || Rails.application.config.x.allow_insecure_auth
+
+    response.headers["Upgrade"] = "TLS/1.2, HTTP/1.1"
+    render plain: "DocSort authentication requires HTTPS.", status: :upgrade_required
   end
 
   def require_admin

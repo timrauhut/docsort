@@ -43,10 +43,10 @@ Replace every **<<< CHANGE ME >>>**:
 | `image` | `youruser/docsort` (Docker Hub) or keep `docsort` for local registry |
 | `registry` | Docker Hub / `ghcr.io` / `localhost:5555` |
 | `builder.arch` | `amd64` (most VPS) or **`arm64`** (Pi 5) |
-| `proxy.ssl` / `host` | `true` + `docs.example.com` for Let's Encrypt |
+| `proxy.ssl` / `host` | Custom mkcert secrets for LAN, or `true` + a public hostname for Let's Encrypt |
 | `OLLAMA_MODEL` | `llama3.2` or `llama3.2:1b` on Pi |
 
-If you enable `proxy.ssl: true`, also set in `env.clear`:
+When TLS is enabled, also set in `env.clear`:
 
 ```yaml
 ASSUME_SSL: true
@@ -61,6 +61,16 @@ export WEBDAV_PASSWORD='a-long-random-secret'
 ```
 
 `.kamal/secrets` already loads `RAILS_MASTER_KEY` from `config/master.key` and requires `WEBDAV_PASSWORD`.
+
+For the included LAN deployment, generate the gitignored custom certificate first:
+
+```bash
+bin/setup-lan-tls
+mkcert -install  # interactive, once per operator Mac
+```
+
+Install the printed mkcert `rootCA.pem` on every client that should trust
+`https://docsort.local`.
 
 ### Registry options
 
@@ -245,7 +255,8 @@ ssh root@SERVER 'docker run --rm -v docsort_storage:/data -v $(pwd):/backup alpi
 | Build fails on `vendor/` | Ensure `vendor/bundle` is dockerignored (it is) |
 | App up, Ollama offline | `bin/kamal-ollama boot` then `pull` |
 | Slow classification | Smaller model / higher `OLLAMA_TIMEOUT` |
-| SSL not issuing | DNS must point to server; `proxy.ssl: true` + open 80/443 |
+| LAN TLS untrusted | Run `mkcert -install` locally; install the generated CA on other clients |
+| Public SSL not issuing | DNS must point to server; `proxy.ssl: true` + open 80/443 |
 | 502 from proxy | `bin/kamal app logs` · check `/up` |
 | Jobs not running | `SOLID_QUEUE_IN_PUMA: true` must be set (default) |
 

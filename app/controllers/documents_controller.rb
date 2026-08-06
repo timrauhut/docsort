@@ -37,6 +37,12 @@ class DocumentsController < ApplicationController
       return
     end
 
+    oversized = files.find { |uploaded| uploaded.size.to_i > Rails.application.config.x.max_upload_bytes }
+    if oversized
+      redirect_to new_document_path, alert: "#{oversized.original_filename} exceeds the upload limit."
+      return
+    end
+
     created = files.map do |uploaded|
       DocumentIngestor.new(
         io: uploaded.tempfile,
@@ -48,6 +54,8 @@ class DocumentsController < ApplicationController
     end
 
     redirect_to documents_path, notice: "Uploaded #{created.size} document(s). Classification started."
+  rescue DocumentIngestor::InvalidUpload => e
+    redirect_to new_document_path, alert: e.message
   end
 
   def edit
@@ -56,8 +64,13 @@ class DocumentsController < ApplicationController
 
   def update
     if @document.update(document_params)
-      if @document.saved_change_to_category_id? && @document.category
-        DocumentOrganizer.new(@document).call
+      if @document.saved_change_to_category_id?
+        if @document.category
+          DocumentOrganizer.new(@document).call
+        else
+          SortedCopy.remove(@document)
+          @document.update_column(:relative_path, nil)
+        end
       end
       redirect_to @document, notice: "Document updated."
     else

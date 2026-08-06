@@ -27,7 +27,10 @@ servers:
 # -----------------------------------------------------------------------------
 # LAN: IP + local names (mDNS docsort.local; optional bare "docsort" via router/hosts)
 proxy:
-  ssl: false
+  ssl:
+    certificate_pem: DOCSORT_TLS_CERTIFICATE
+    private_key_pem: DOCSORT_TLS_PRIVATE_KEY
+  ssl_redirect: true
   hosts:
     - 192.168.178.158
     - docsort.local
@@ -73,12 +76,15 @@ env:
     DOCSORT_OCR_MODE: auto
     DOCSORT_OCR_LANGS: eng+deu
     DOCSORT_CLASSIFY_MAX_CHARS: "12000"
+    DOCSORT_MAX_UPLOAD_BYTES: "104857600"
+    DOCSORT_ALLOW_INSECURE_AUTH: false
+    DOCSORT_ALLOW_INSECURE_WEBDAV: false
 
     # Seed categories + admin user if missing
     DOCSORT_AUTO_SEED: true
 
-    ASSUME_SSL: false
-    FORCE_SSL: false
+    ASSUME_SSL: true
+    FORCE_SSL: true
 
 # -----------------------------------------------------------------------------
 # Convenience aliases → bin/kamal <alias>
