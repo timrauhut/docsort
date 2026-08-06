@@ -1,6 +1,6 @@
 # DocSort — project memory
 
-**Last updated:** 2026-07-22  
+**Last updated:** 2026-08-06
 **Location:** `/Users/tr/Projects/docsort`  
 **Stack:** Ruby on Rails 8.1.3 · Ruby 4.0.6 (Homebrew) · SQLite · Active Storage · Solid Queue (in Puma prod / async dev) · Tailwind · Stimulus · Turbo · Ollama (local LLM) · Kamal-ready  
 
@@ -185,6 +185,34 @@ Smoke: Telekom-style letter → issuer `Deutsche Telekom AG`.
 - Mobile QR helper page  
 - Web UI auth (only WebDAV basic auth today)  
 - WebDAV dedupe by checksum  
+
+---
+
+## Future distribution — ONCE-style installer
+
+Goal: make DocSort installable like 37signals' ONCE products with one command:
+
+```bash
+curl -fsSL https://get.docsort.app | sh
+```
+
+Recommended approach:
+
+- Ship signed, versioned multi-architecture Docker images (`linux/amd64` and `linux/arm64`).
+- Use Docker Compose for customer installations; retain Kamal for the project-owned Pi deployment.
+- Provide a small `docsort` CLI with `install`, `status`, `update`, `backup`, `restore`, `logs`, `doctor`, and `uninstall` commands.
+- Installer detects OS/architecture and Docker, generates secrets, configures storage, optionally installs Ollama, pulls the configured production model, starts services, and prints the URL/recovery details.
+- Keep all persistent data in one obvious directory containing database, documents, inbox, sorted files, Ollama models, backups, and configuration.
+- Public/domain installs should use Caddy or Traefik with automatic Let's Encrypt HTTPS.
+- LAN installs should offer either explained HTTP, private-CA HTTPS with per-device onboarding, or optional Tailscale HTTPS. A private CA cannot be completely zero-touch on every client.
+- Start with explicit `docsort update`: verify a signed release manifest, back up, pull images, migrate, health-check, and automatically roll back on failure. Add opt-in automatic updates later.
+- Add a first-run administrator wizard, automatic secrets, backup/restore, signed releases, resource requirements, optional Ollama profile, upgrade compatibility tests, diagnostics, full export, and a clear license before calling it one-command ready.
+
+Ideal experience:
+
+```text
+install command → open HTTPS URL → create first user → upload documents
+```
 
 ---
 

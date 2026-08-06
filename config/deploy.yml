@@ -63,8 +63,8 @@ env:
     # Ollama accessory on Kamal's private Docker network
     # Hostname: <service>-<accessory> → docsort-ollama
     OLLAMA_HOST: http://docsort-ollama:11434
-    # Full llama3.2 (~3B); use llama3.2:1b if the Pi is RAM-starved
-    OLLAMA_MODEL: llama3.2:latest
+    # Qwen 2.5 3B gives strong German/English classification and reliable JSON on the 8 GB Pi.
+    OLLAMA_MODEL: qwen2.5:3b
     OLLAMA_TIMEOUT: 600
 
     # Bootstrap admin username (password is DOCSORT_ADMIN_PASSWORD secret)
@@ -95,7 +95,7 @@ aliases:
   logs: app logs -f
   dbc: app exec --interactive --reuse "bin/rails dbconsole --include-password"
   seed: app exec "bin/rails db:seed"
-  ollama-pull: accessory exec ollama -- "ollama pull llama3.2:latest"
+  ollama-pull: accessory exec ollama -- "ollama pull qwen2.5:3b"
   ollama-pull-small: accessory exec ollama -- "ollama pull llama3.2:1b"
   ollama-list: accessory exec ollama -- "ollama list"
   ollama-logs: accessory logs ollama -f
