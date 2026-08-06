@@ -221,19 +221,10 @@ Ruby must be Homebrew 4.x, not system `/usr/bin/ruby`.
 | Image arch | **arm64** |
 | Registry pattern | Build → local `localhost:5555` → `docker save \| ssh docker load` → `bin/kamal deploy --skip-push` |
 
-Typical deploy from Mac (when Pi online):
+**Full agent deploy runbook:** [`DEPLOY-AGENTS.md`](./DEPLOY-AGENTS.md)  
+(preconditions, secrets, exact commands, verify, failure playbook, anti-patterns).
 
-```bash
-export DOCSORT_ADMIN_PASSWORD="$(cat /tmp/docsort-admin-password.txt)"  # or set explicitly
-bin/kamal build push
-TAG=$(git rev-parse HEAD)
-docker pull "localhost:5555/docsort:${TAG}"
-docker save "localhost:5555/docsort:${TAG}" | ssh -p 22 -i ~/.ssh/id_ed25519 pi@192.168.0.1 "docker load"
-# tag latest + keep RAILS_MASTER_KEY on Pi web.env
-bin/kamal deploy --skip-push
-```
-
-Admin password on Pi is **not** committed; historically stored in deploy env / `/tmp/docsort-admin-password.txt` on the operator machine.
+Summary: only deploy when asked; probe SSH first; commit first; never wipe `RAILS_MASTER_KEY` on the Pi `web.env`.
 
 Dockerfile includes **tesseract** + **poppler-utils** + eng/deu lang packs for OCR.
 
@@ -300,9 +291,11 @@ Plus runtime `issuers/<brand-slug>/` when auto-created.
 | File | Role |
 |------|------|
 | `LLM-WIKI.md` | **This** — stable agent orientation |
+| `DEPLOY-AGENTS.md` | **How agents deploy** to the Pi (canonical recipe) |
+| `AGENTS.md` | Entry pointer for coding agents |
 | `MEMORY.md` | Session handoff / chronological notes (may lag) |
 | `README.md` | Human quickstart |
-| `DEPLOY.md` | Kamal walkthrough |
+| `DEPLOY.md` | Kamal walkthrough / first-time setup |
 | `config/deploy.yml` | Live prod topology |
 
 When MEMORY conflicts with this wiki on **architecture facts**, trust **code** first, then this wiki, then MEMORY.
