@@ -164,21 +164,23 @@ body.docsort-body::before {
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.65rem;
   text-decoration: none;
   color: inherit;
+  min-width: max-content;
 }
 
 .brand__logo {
-  width: 2.35rem;
-  height: 2.35rem;
-  border-radius: 0.7rem;
+  width: 3rem;
+  height: 3rem;
   display: block;
-  box-shadow: var(--shadow-sm);
   flex-shrink: 0;
-  /* Icon SVG already has the app tile; avoid double-cropping oddities */
-  object-fit: cover;
-  background: transparent;
+  filter: drop-shadow(0 0.2rem 0.2rem rgb(35 30 30 / 18%));
+}
+
+.brand__copy {
+  display: grid;
+  min-width: 0;
 }
 
 .brand__mark {
