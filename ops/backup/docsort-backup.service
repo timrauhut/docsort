@@ -1,0 +1,13 @@
+[Unit]
+Description=Back up DocSort to local Restic and Cloudflare R2
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/docsort-backup
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+

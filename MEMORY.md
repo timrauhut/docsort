@@ -301,13 +301,25 @@ Sample rules: filename `invoice` / `receipt`.
 
 ## Open next steps
 
-1. Fill Kamal server IP / registry / SSL; first real deploy  
-2. Production `WEBDAV_PASSWORD` (not `upload123`)  
-3. Optional web UI auth  
-4. OCR for scans  
-5. WebDAV dedupe  
-6. Mobile QR + upload helper  
-7. User A/B test Gemma vs llama3.2 on their corpus  
+1. Configure the Cloudflare R2 repository and bucket-scoped credentials in `/etc/docsort-backup.env` on the Pi.
+2. Copy `/etc/docsort-backup-password` to an offline password manager; never print or commit it.
+3. Move the local Restic repository to a separate USB SSD later.
+4. OCR quality tuning for scans.
+5. WebDAV dedupe.
+6. Mobile QR + upload helper.
+
+---
+
+## Production backups (2026-08-07)
+
+- Tooling: `ops/backup/`.
+- Local encrypted Restic repository: `/var/backups/docsort/restic` on the current Pi main SSD.
+- Snapshot timer: nightly around 03:15; integrity-check timer: Sunday around 05:15.
+- Retention: 7 daily, 8 weekly, 12 monthly.
+- First verified snapshot: `76b4ea57`, about 175 MiB.
+- A real temporary restore succeeded and all four restored SQLite databases passed `PRAGMA integrity_check`.
+- R2 support is installed but remains disabled until bucket endpoint and credentials are entered locally.
+- Main-SSD snapshots protect against application/data mistakes, not SSD failure; R2 is required for disaster recovery.
 
 ---
 
