@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+APP_ROOT="${DOCSORT_INSTALL_ROOT:-$HOME/Library/Application Support/DocSort}"
+CONFIG_FILE="${DOCSORT_BACKUP_CONFIG:-$APP_ROOT/backup.env}"
+if [[ -f "$CONFIG_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "$CONFIG_FILE"
+fi
+
+BACKUP_ROOT="${DOCSORT_BACKUP_ROOT:-$APP_ROOT/backups}"
+STAGING_DIR="$BACKUP_ROOT/staging/current"
+LOCAL_REPOSITORY="${DOCSORT_LOCAL_REPOSITORY:-$BACKUP_ROOT/restic}"
+PASSWORD_FILE="${DOCSORT_RESTIC_PASSWORD_FILE:-$APP_ROOT/backup-password}"
+STATUS_FILE="$BACKUP_ROOT/status.env"
+STORAGE_VOLUME="${DOCSORT_STORAGE_VOLUME:-docsort_storage}"
+LOCK_DIR="$BACKUP_ROOT/.lock"
+
+log() { printf '%s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*"; }
+fail() { log "ERROR: $*" >&2; exit 1; }
+for command in docker restic sqlite3; do command -v "$command" >/dev/null 2>&1 || fail "missing command: $command"; done
+[[ -s "$PASSWORD_FILE" ]] || fail "missing Restic password file: $PASSWORD_FILE"
+mkdir -p "$BACKUP_ROOT/staging" "$BACKUP_ROOT/cache"
+mkdir "$LOCK_DIR" 2>/dev/null || fail "another DocSort backup is already running"
+tmp_staging="$BACKUP_ROOT/staging/.next-$$"
+web_container=""
+web_stopped=0
+cleanup() {
+  (( web_stopped == 0 )) || docker start "$web_container" >/dev/null || true
+  [[ ! -d "$tmp_staging" ]] || rm -rf -- "$tmp_staging"
+  rmdir "$LOCK_DIR" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+web_container="$(docker ps --filter label=service=docsort --filter label=role=web --format '{{.Names}}' | head -n 1)"
+[[ -n "$web_container" ]] || fail "running DocSort web container not found"
+mkdir -p "$tmp_staging/storage"
+log "Pausing DocSort briefly for a consistent snapshot"
+docker stop --time 30 "$web_container" >/dev/null
+web_stopped=1
+docker run --rm -v "$STORAGE_VOLUME:/source:ro" -v "$tmp_staging/storage:/destination" alpine:3.22 \
+  sh -c 'cp -a /source/. /destination/'
+docker start "$web_container" >/dev/null
+web_stopped=0
+
+database_count=0
+while IFS= read -r database; do
+  [[ -n "$database" ]] || continue
+  sqlite3 "$database" 'PRAGMA integrity_check;' | grep -qx ok || fail "SQLite integrity check failed: $(basename "$database")"
+  database_count=$((database_count + 1))
+done < <(find "$tmp_staging/storage" -maxdepth 1 -name '*.sqlite3' -type f)
+(( database_count > 0 )) || fail "no production SQLite databases found"
+cat >"$tmp_staging/manifest.env" <<EOF
+DOCSORT_BACKUP_CREATED_AT=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+DOCSORT_BACKUP_HOST=$(hostname)
+DOCSORT_BACKUP_DATABASES=$database_count
+DOCSORT_BACKUP_SOURCE_VOLUME=$STORAGE_VOLUME
+EOF
+rm -rf -- "$STAGING_DIR"
+mv "$tmp_staging" "$STAGING_DIR"
+tmp_staging=""
+export RESTIC_CACHE_DIR="$BACKUP_ROOT/cache"
+
+backup_repository() {
+  local repository="$1"
+  RESTIC_REPOSITORY="$repository" RESTIC_PASSWORD_FILE="$PASSWORD_FILE" restic snapshots >/dev/null 2>&1 \
+    || RESTIC_REPOSITORY="$repository" RESTIC_PASSWORD_FILE="$PASSWORD_FILE" restic init
+  RESTIC_REPOSITORY="$repository" RESTIC_PASSWORD_FILE="$PASSWORD_FILE" restic unlock
+  RESTIC_REPOSITORY="$repository" RESTIC_PASSWORD_FILE="$PASSWORD_FILE" restic backup "$STAGING_DIR" --tag docsort --host "$(hostname)"
+  RESTIC_REPOSITORY="$repository" RESTIC_PASSWORD_FILE="$PASSWORD_FILE" restic forget --tag docsort --keep-daily 7 --keep-weekly 8 --keep-monthly 12 --prune
+}
+
+backup_repository "$LOCAL_REPOSITORY"
+local_snapshot="$(RESTIC_REPOSITORY="$LOCAL_REPOSITORY" RESTIC_PASSWORD_FILE="$PASSWORD_FILE" restic snapshots --latest 1 --json | sed -n 's/.*"short_id":"\([^"]*\)".*/\1/p')"
+r2_status=disabled
+if [[ -n "${DOCSORT_R2_REPOSITORY:-}" ]]; then
+  [[ -n "${AWS_ACCESS_KEY_ID:-}" && -n "${AWS_SECRET_ACCESS_KEY:-}" ]] || fail "R2 credentials are missing"
+  export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-auto}"
+  backup_repository "$DOCSORT_R2_REPOSITORY"
+  r2_status=ok
+fi
+cat >"$STATUS_FILE" <<EOF
+LAST_SUCCESS=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+LOCAL_SNAPSHOT=${local_snapshot:-unknown}
+R2_STATUS=$r2_status
+EOF
+chmod 0600 "$STATUS_FILE"
+log "Backup completed: local=${local_snapshot:-unknown}, r2=$r2_status"

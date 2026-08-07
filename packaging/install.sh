@@ -2,10 +2,19 @@
 set -eu
 
 DOWNLOAD_BASE="${DOCSORT_DOWNLOAD_BASE:-https://get.docsort.app}"
-INSTALL_BIN="${DOCSORT_INSTALL_BIN:-/usr/local/bin/docsort}"
+os_name="$(uname -s)"
+if [ "$os_name" = Darwin ]; then
+  INSTALL_BIN="${DOCSORT_INSTALL_BIN:-$HOME/.local/bin/docsort}"
+else
+  INSTALL_BIN="${DOCSORT_INSTALL_BIN:-/usr/local/bin/docsort}"
+fi
 
-if [ "$(id -u)" -ne 0 ]; then
+if [ "$os_name" = Linux ] && [ "$(id -u)" -ne 0 ]; then
   echo "Run this installer with sudo." >&2
+  exit 1
+fi
+if [ "$os_name" = Darwin ] && [ "$(id -u)" -eq 0 ]; then
+  echo "On macOS, run this installer without sudo." >&2
   exit 1
 fi
 
@@ -18,8 +27,9 @@ tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT INT TERM
 
 if ! command -v docker >/dev/null 2>&1; then
-  [ "$(uname -s)" = Linux ] || {
-    echo "Automatic Docker installation is supported on Linux only." >&2
+  [ "$os_name" = Linux ] || {
+    echo "Install and start Docker Desktop for Mac, then rerun this installer:" >&2
+    echo "https://docs.docker.com/desktop/setup/install/mac-install/" >&2
     exit 1
   }
   echo "Docker is not installed; installing it with Docker's official convenience script."
@@ -31,6 +41,10 @@ docker compose version >/dev/null 2>&1 || {
   echo "Docker Compose v2 is required." >&2
   exit 1
 }
+docker info >/dev/null 2>&1 || {
+  echo "Docker is installed but not running. Start Docker Desktop or the Docker service." >&2
+  exit 1
+}
 
 if [ -n "${DOCSORT_CLI_FILE:-}" ]; then
   cp "$DOCSORT_CLI_FILE" "$tmp_dir/docsort"
@@ -38,6 +52,7 @@ else
   curl -fsSL "$DOWNLOAD_BASE/docsort" -o "$tmp_dir/docsort"
 fi
 
+install -d "$(dirname "$INSTALL_BIN")"
 install -m 0755 "$tmp_dir/docsort" "$INSTALL_BIN"
 "$INSTALL_BIN" install "$@"
 
@@ -54,7 +69,14 @@ if [ "${DOCSORT_SKIP_BACKUPS:-false}" != true ]; then
     tar -xzf "$tmp_dir/backup.tar.gz" -C "$tmp_dir/backup"
     backup_dir="$tmp_dir/backup"
   fi
-  "$backup_dir/install"
+  if [ "$os_name" = Darwin ]; then
+    "$backup_dir/install-macos"
+  else
+    "$backup_dir/install"
+  fi
 fi
 
 echo "DocSort installation finished. Run 'docsort status' to verify it."
+if [ "$os_name" = Darwin ]; then
+  echo "If docsort is not found, add $HOME/.local/bin to your PATH."
+fi
