@@ -1,0 +1,288 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+VERSION="0.1.0"
+INSTALL_ROOT="${DOCSORT_INSTALL_ROOT:-/opt/docsort}"
+COMPOSE_FILE="$INSTALL_ROOT/compose.yml"
+ENV_FILE="$INSTALL_ROOT/docsort.env"
+
+say() { printf 'DocSort: %s\n' "$*"; }
+die() { say "ERROR: $*" >&2; exit 1; }
+require() { command -v "$1" >/dev/null 2>&1 || die "missing command: $1"; }
+compose() { docker compose --project-name docsort --file "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"; }
+
+random_secret() {
+  openssl rand -hex "$1"
+}
+
+write_compose() {
+  local mode="$1"
+  local ollama="$2"
+
+  cat >"$COMPOSE_FILE" <<'YAML'
+name: docsort
+
+services:
+  web:
+    image: ${DOCSORT_IMAGE}
+    restart: unless-stopped
+    env_file: docsort.env
+    environment:
+      RAILS_ENV: production
+      RAILS_LOG_LEVEL: info
+      SOLID_QUEUE_IN_PUMA: "true"
+      DOCSORT_SORTED_ROOT: /rails/storage/sorted
+      DOCSORT_INBOX_ROOT: /rails/storage/inbox
+      DOCSORT_AUTO_SEED: "true"
+      DOCSORT_OCR_MODE: auto
+      DOCSORT_OCR_LANGS: eng+deu
+      DOCSORT_CLASSIFY_MAX_CHARS: "12000"
+      DOCSORT_MAX_UPLOAD_BYTES: "104857600"
+    volumes:
+      - docsort_storage:/rails/storage
+    labels:
+      service: docsort
+      role: web
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost/up"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+YAML
+
+  if [[ "$mode" == lan ]]; then
+    cat >>"$COMPOSE_FILE" <<'YAML'
+    ports:
+      - "${DOCSORT_PORT:-3000}:80"
+YAML
+  fi
+
+  if [[ "$ollama" == true ]]; then
+    cat >>"$COMPOSE_FILE" <<'YAML'
+    depends_on:
+      ollama:
+        condition: service_started
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    environment:
+      OLLAMA_KEEP_ALIVE: 24h
+    volumes:
+      - ollama_data:/root/.ollama
+YAML
+  fi
+
+  if [[ "$mode" == domain ]]; then
+    cat >>"$COMPOSE_FILE" <<'YAML'
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOCSORT_DOMAIN: ${DOCSORT_DOMAIN}
+    command: ["caddy", "reverse-proxy", "--from", "${DOCSORT_DOMAIN}", "--to", "web:80"]
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+YAML
+  fi
+
+  cat >>"$COMPOSE_FILE" <<'YAML'
+
+volumes:
+  docsort_storage:
+    name: docsort_storage
+YAML
+
+  if [[ "$ollama" == true ]]; then
+    printf '%s\n' '  ollama_data:' '    name: ollama_data' >>"$COMPOSE_FILE"
+  fi
+  if [[ "$mode" == domain ]]; then
+    printf '%s\n' '  caddy_data:' '  caddy_config:' >>"$COMPOSE_FILE"
+  fi
+}
+
+install_command() {
+  require docker
+  require openssl
+  docker compose version >/dev/null 2>&1 || die "Docker Compose v2 is required"
+
+  local mode="${DOCSORT_MODE:-lan}"
+  local domain="${DOCSORT_DOMAIN:-}"
+  local port="${DOCSORT_PORT:-3000}"
+  local image="${DOCSORT_IMAGE:-docsort:latest}"
+  local ollama="${DOCSORT_OLLAMA:-true}"
+  local admin_password
+  admin_password="$(random_secret 24)"
+
+  while (($#)); do
+    case "$1" in
+      --domain) mode=domain; domain="${2:?missing domain}"; shift 2 ;;
+      --lan) mode=lan; shift ;;
+      --port) port="${2:?missing port}"; shift 2 ;;
+      --image) image="${2:?missing image}"; shift 2 ;;
+      --no-ollama) ollama=false; shift ;;
+      --yes) shift ;;
+      *) die "unknown install option: $1" ;;
+    esac
+  done
+
+  [[ "$mode" == lan || "$mode" == domain ]] || die "mode must be lan or domain"
+  [[ "$ollama" == true || "$ollama" == false ]] || die "DOCSORT_OLLAMA must be true or false"
+  if [[ "$mode" == domain ]]; then
+    [[ "$domain" == *.* && "$domain" != *.local ]] || die "a registered public domain is required for automatic HTTPS"
+  fi
+
+  install -d -m 0700 "$INSTALL_ROOT"
+  [[ ! -e "$ENV_FILE" ]] || die "$ENV_FILE already exists; use 'docsort update'"
+
+  umask 077
+  cat >"$ENV_FILE" <<EOF
+DOCSORT_IMAGE=$image
+DOCSORT_MODE=$mode
+DOCSORT_DOMAIN=$domain
+DOCSORT_PORT=$port
+SECRET_KEY_BASE=$(random_secret 64)
+DOCSORT_ADMIN_USERNAME=admin
+DOCSORT_ADMIN_PASSWORD=$admin_password
+WEBDAV_PASSWORD=$admin_password
+OLLAMA_HOST=http://ollama:11434
+OLLAMA_MODEL=qwen2.5:3b
+OLLAMA_TIMEOUT=600
+ASSUME_SSL=$([[ "$mode" == domain ]] && echo true || echo false)
+FORCE_SSL=$([[ "$mode" == domain ]] && echo true || echo false)
+DOCSORT_ALLOW_INSECURE_AUTH=$([[ "$mode" == lan ]] && echo true || echo false)
+DOCSORT_ALLOW_INSECURE_WEBDAV=$([[ "$mode" == lan ]] && echo true || echo false)
+EOF
+  chmod 0600 "$ENV_FILE"
+  write_compose "$mode" "$ollama"
+
+  if [[ "${DOCSORT_DRY_RUN:-false}" == true ]]; then
+    compose config --quiet
+    say "Dry run complete: $COMPOSE_FILE"
+    return
+  fi
+
+  if ! docker image inspect "$image" >/dev/null 2>&1; then
+    say "Pulling $image"
+    docker pull "$image" || die "image unavailable; pass --image with a published multi-architecture image"
+  fi
+
+  compose up --detach
+  if [[ "$ollama" == true ]]; then
+    say "Downloading Qwen 2.5 3B (first install only)"
+    compose exec --no-TTY ollama ollama pull qwen2.5:3b
+  fi
+
+  say "Waiting for the application"
+  local attempts=0
+  until compose exec --no-TTY web curl --fail --silent http://localhost/up >/dev/null 2>&1; do
+    attempts=$((attempts + 1))
+    (( attempts < 60 )) || { compose logs --tail 100 web; die "application health check failed"; }
+    sleep 2
+  done
+
+  say "Installed successfully"
+  if [[ "$mode" == domain ]]; then
+    say "Open https://$domain"
+  else
+    say "Open http://$(hostname -I 2>/dev/null | awk '{print $1}'):$port"
+    say "LAN mode uses HTTP; use a domain install for browser-trusted HTTPS"
+  fi
+  say "Admin password is stored in $ENV_FILE (mode 600)"
+}
+
+update_command() {
+  [[ -f "$ENV_FILE" && -f "$COMPOSE_FILE" ]] || die "DocSort is not installed at $INSTALL_ROOT"
+  compose pull
+  compose up --detach --remove-orphans
+  compose exec --no-TTY web curl --fail --silent http://localhost/up >/dev/null
+  say "Update complete"
+}
+
+status_command() {
+  [[ -f "$COMPOSE_FILE" ]] || die "DocSort is not installed"
+  compose ps
+  if [[ -f /var/backups/docsort/status.env ]]; then
+    printf '\nBackup status:\n'
+    cat /var/backups/docsort/status.env
+  fi
+}
+
+backup_command() {
+  command -v systemctl >/dev/null 2>&1 || die "systemd is required for managed backups"
+  systemctl cat docsort-backup.service >/dev/null 2>&1 \
+    || die "backup service is not installed; reinstall without DOCSORT_SKIP_BACKUPS=true"
+  systemctl start docsort-backup.service
+  say "Backup completed"
+  [[ -f /var/backups/docsort/status.env ]] && cat /var/backups/docsort/status.env
+}
+
+backup_status_command() {
+  [[ -f /var/backups/docsort/status.env ]] \
+    || die "no backup status exists yet; run 'docsort backup'"
+  cat /var/backups/docsort/status.env
+}
+
+credentials_command() {
+  [[ -f "$ENV_FILE" ]] || die "DocSort is not installed at $INSTALL_ROOT"
+  if [[ "${1:-}" == --show ]]; then
+    say "Admin username: $(sed -n 's/^DOCSORT_ADMIN_USERNAME=//p' "$ENV_FILE")"
+    say "Admin password: $(sed -n 's/^DOCSORT_ADMIN_PASSWORD=//p' "$ENV_FILE")"
+  else
+    say "Credentials are stored in $ENV_FILE (mode 600)."
+    say "Run 'sudo docsort credentials --show' to reveal them."
+  fi
+}
+
+doctor_command() {
+  local failed=0
+  for command in docker openssl; do
+    if command -v "$command" >/dev/null 2>&1; then say "OK $command"; else say "FAIL $command"; failed=1; fi
+  done
+  if docker compose version >/dev/null 2>&1; then say "OK Docker Compose"; else say "FAIL Docker Compose"; failed=1; fi
+  if [[ -f "$ENV_FILE" ]]; then
+    [[ "$(stat -c %a "$ENV_FILE" 2>/dev/null || stat -f %Lp "$ENV_FILE")" == 600 ]] \
+      && say "OK secrets permissions" || { say "FAIL secrets permissions"; failed=1; }
+  fi
+  if [[ -f "$COMPOSE_FILE" ]]; then compose config --quiet || failed=1; fi
+  return "$failed"
+}
+
+uninstall_command() {
+  [[ "${1:-}" == --confirm ]] || die "uninstall preserves data; rerun: docsort uninstall --confirm"
+  [[ -f "$COMPOSE_FILE" ]] || die "DocSort is not installed"
+  compose down
+  say "Containers removed. Data volume docsort_storage and $INSTALL_ROOT were preserved."
+}
+
+case "${1:-help}" in
+  install) shift; install_command "$@" ;;
+  update) update_command ;;
+  status) status_command ;;
+  logs) shift; compose logs "$@" ;;
+  backup) backup_command ;;
+  backup-status) backup_status_command ;;
+  credentials) shift; credentials_command "$@" ;;
+  doctor) doctor_command ;;
+  uninstall) shift; uninstall_command "$@" ;;
+  version|--version) echo "$VERSION" ;;
+  help|--help|-h)
+    cat <<EOF
+Usage: docsort COMMAND
+
+  install [--domain NAME|--lan] [--port N] [--image IMAGE] [--no-ollama]
+  update | status | logs | backup | backup-status | credentials | doctor
+  uninstall --confirm
+EOF
+    ;;
+  *) die "unknown command: $1" ;;
+esac
