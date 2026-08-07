@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+CONFIG_FILE="${DOCSORT_BACKUP_CONFIG:-/etc/docsort-backup.env}"
+if [[ -f "$CONFIG_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "$CONFIG_FILE"
+fi
+
+BACKUP_ROOT="${DOCSORT_BACKUP_ROOT:-/var/backups/docsort}"
+STAGING_DIR="${DOCSORT_BACKUP_STAGING:-$BACKUP_ROOT/staging/current}"
+LOCAL_REPOSITORY="${DOCSORT_LOCAL_REPOSITORY:-$BACKUP_ROOT/restic}"
+PASSWORD_FILE="${DOCSORT_RESTIC_PASSWORD_FILE:-/etc/docsort-backup-password}"
+RESTIC_CACHE_DIR="${DOCSORT_RESTIC_CACHE_DIR:-$BACKUP_ROOT/cache}"
+STORAGE_VOLUME="${DOCSORT_STORAGE_VOLUME:-docsort_storage}"
+MIN_FREE_PERCENT="${DOCSORT_BACKUP_MIN_FREE_PERCENT:-20}"
+STATUS_FILE="${DOCSORT_BACKUP_STATUS_FILE:-$BACKUP_ROOT/status.env}"
+LOCK_FILE="${DOCSORT_BACKUP_LOCK_FILE:-/run/lock/docsort-backup.lock}"
+
+[[ "$BACKUP_ROOT" == /var/backups/docsort || "$BACKUP_ROOT" == /mnt/*/docsort* ]] \
+  || { echo "unsafe backup root: $BACKUP_ROOT" >&2; exit 1; }
+[[ "$STAGING_DIR" == "$BACKUP_ROOT"/staging/* ]] \
+  || { echo "staging directory must be below $BACKUP_ROOT/staging" >&2; exit 1; }
+
+log() { printf '%s %s\n' "$(date --iso-8601=seconds)" "$*"; }
+fail() { log "ERROR: $*" >&2; exit 1; }
+require() { command -v "$1" >/dev/null 2>&1 || fail "missing command: $1"; }
+
+[[ ${EUID:-$(id -u)} -eq 0 ]] || fail "run as root"
+for command in docker restic rsync sqlite3 flock findmnt df; do require "$command"; done
+[[ -s "$PASSWORD_FILE" ]] || fail "missing Restic password file: $PASSWORD_FILE"
+
+install -d -m 0700 "$BACKUP_ROOT" "$(dirname "$LOCK_FILE")"
+install -d -m 0700 "$RESTIC_CACHE_DIR"
+export RESTIC_CACHE_DIR
+exec 9>"$LOCK_FILE"
+flock -n 9 || fail "another DocSort backup is already running"
+
+SOURCE_DIR="$(docker volume inspect "$STORAGE_VOLUME" --format '{{.Mountpoint}}')"
+[[ -d "$SOURCE_DIR" ]] || fail "Docker volume path not found: $SOURCE_DIR"
+
+available_blocks="$(df -P "$BACKUP_ROOT" | awk 'NR == 2 {print $4}')"
+total_blocks="$(df -P "$BACKUP_ROOT" | awk 'NR == 2 {print $2}')"
+(( total_blocks > 0 )) || fail "could not determine backup filesystem capacity"
+free_percent=$((available_blocks * 100 / total_blocks))
+(( free_percent >= MIN_FREE_PERCENT )) || fail "backup disk has ${free_percent}% free; minimum is ${MIN_FREE_PERCENT}%"
+
+tmp_staging="$BACKUP_ROOT/staging/.next-$$"
+web_container=""
+web_stopped=0
+
+restart_web() {
+  if (( web_stopped == 1 )) && [[ -n "$web_container" ]]; then
+    log "Restarting $web_container after interrupted snapshot"
+    docker start "$web_container" >/dev/null || true
+  fi
+}
+cleanup() {
+  restart_web
+  [[ -z "$tmp_staging" ]] || rm -rf -- "$tmp_staging"
+}
+trap cleanup EXIT INT TERM
+
+install -d -m 0700 "$tmp_staging/storage"
+
+log "Pre-copying immutable document storage"
+rsync -a --delete \
+  --exclude='*.sqlite3' --exclude='*.sqlite3-*' \
+  --exclude='tmp/' --exclude='log/' \
+  "$SOURCE_DIR/" "$tmp_staging/storage/"
+
+web_container="$(docker ps --filter label=service=docsort --filter label=role=web --format '{{.Names}}' | head -n 1)"
+[[ -n "$web_container" ]] || fail "running DocSort web container not found"
+
+log "Pausing DocSort briefly for a consistent snapshot"
+docker stop --time 30 "$web_container" >/dev/null
+web_stopped=1
+
+rsync -a --delete \
+  --exclude='*.sqlite3' --exclude='*.sqlite3-*' \
+  --exclude='tmp/' --exclude='log/' \
+  "$SOURCE_DIR/" "$tmp_staging/storage/"
+
+shopt -s nullglob
+database_count=0
+for database in "$SOURCE_DIR"/*.sqlite3; do
+  destination="$tmp_staging/storage/$(basename "$database")"
+  sqlite3 "$database" ".timeout 30000" ".backup '$destination'"
+  sqlite3 "$destination" "PRAGMA integrity_check;" | grep -qx ok \
+    || fail "SQLite integrity check failed: $(basename "$database")"
+  database_count=$((database_count + 1))
+done
+(( database_count > 0 )) || fail "no production SQLite databases found"
+
+docker start "$web_container" >/dev/null
+web_stopped=0
+
+cat >"$tmp_staging/manifest.env" <<EOF
+DOCSORT_BACKUP_CREATED_AT=$(date --iso-8601=seconds)
+DOCSORT_BACKUP_HOST=$(hostname)
+DOCSORT_BACKUP_DATABASES=$database_count
+DOCSORT_BACKUP_SOURCE_VOLUME=$STORAGE_VOLUME
+EOF
+
+rm -rf -- "$STAGING_DIR"
+mv -- "$tmp_staging" "$STAGING_DIR"
+tmp_staging=""
+
+backup_repository() {
+  local name="$1"
+  local repository="$2"
+
+  log "Backing up to $name"
+  RESTIC_REPOSITORY="$repository" RESTIC_PASSWORD_FILE="$PASSWORD_FILE" \
+    restic snapshots >/dev/null 2>&1 \
+    || RESTIC_REPOSITORY="$repository" RESTIC_PASSWORD_FILE="$PASSWORD_FILE" restic init
+
+  # Remove only locks whose owning process/host is no longer active.
+  RESTIC_REPOSITORY="$repository" RESTIC_PASSWORD_FILE="$PASSWORD_FILE" restic unlock
+
+  RESTIC_REPOSITORY="$repository" RESTIC_PASSWORD_FILE="$PASSWORD_FILE" \
+    restic backup "$STAGING_DIR" --tag docsort --host "$(hostname)"
+
+  RESTIC_REPOSITORY="$repository" RESTIC_PASSWORD_FILE="$PASSWORD_FILE" \
+    restic forget --tag docsort --keep-daily 7 --keep-weekly 8 --keep-monthly 12 --prune
+}
+
+backup_repository local "$LOCAL_REPOSITORY"
+local_snapshot="$(RESTIC_REPOSITORY="$LOCAL_REPOSITORY" RESTIC_PASSWORD_FILE="$PASSWORD_FILE" restic snapshots --latest 1 --json | sed -n 's/.*"short_id":"\([^"]*\)".*/\1/p')"
+
+r2_status=disabled
+if [[ -n "${DOCSORT_R2_REPOSITORY:-}" ]]; then
+  [[ -n "${AWS_ACCESS_KEY_ID:-}" && -n "${AWS_SECRET_ACCESS_KEY:-}" ]] \
+    || fail "R2 repository configured but AWS credentials are missing"
+  export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+  backup_repository r2 "$DOCSORT_R2_REPOSITORY"
+  r2_status=ok
+fi
+
+cat >"$STATUS_FILE" <<EOF
+LAST_SUCCESS=$(date --iso-8601=seconds)
+LOCAL_SNAPSHOT=${local_snapshot:-unknown}
+R2_STATUS=$r2_status
+EOF
+chmod 0600 "$STATUS_FILE"
+log "Backup completed: local=${local_snapshot:-unknown}, r2=$r2_status"

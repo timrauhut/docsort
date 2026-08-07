@@ -235,15 +235,21 @@ Building **arm64** images from an Apple Silicon Mac is native; from an Intel Mac
 
 ## 9. Data & backups
 
-On the server, Docker volumes hold everything important:
+Production uses encrypted Restic snapshots managed by the files in `ops/backup/`.
+The current local repository lives on the Pi's main SSD at
+`/var/backups/docsort/restic`; Cloudflare R2 is the independent off-site target.
 
 ```bash
-# list volumes
-ssh root@SERVER docker volume ls | grep -E 'docsort|ollama'
-
-# backup app storage (SQLite + files)
-ssh root@SERVER 'docker run --rm -v docsort_storage:/data -v $(pwd):/backup alpine tar czf /backup/docsort-storage.tgz -C /data .'
+sudo systemctl start docsort-backup.service
+sudo systemctl status docsort-backup.service --no-pager
+sudo cat /var/backups/docsort/status.env
 ```
+
+The job pre-copies documents, briefly stops the web container for the final sync,
+creates consistent snapshots of all four SQLite databases, checks their integrity,
+restarts DocSort, then backs up the staging tree. Retention is 7 daily, 8 weekly,
+and 12 monthly snapshots. See `ops/backup/README.md` for installation, R2, checks,
+and recovery-password requirements.
 
 ---
 

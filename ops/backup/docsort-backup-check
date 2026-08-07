@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+CONFIG_FILE="${DOCSORT_BACKUP_CONFIG:-/etc/docsort-backup.env}"
+if [[ -f "$CONFIG_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "$CONFIG_FILE"
+fi
+
+BACKUP_ROOT="${DOCSORT_BACKUP_ROOT:-/var/backups/docsort}"
+LOCAL_REPOSITORY="${DOCSORT_LOCAL_REPOSITORY:-$BACKUP_ROOT/restic}"
+PASSWORD_FILE="${DOCSORT_RESTIC_PASSWORD_FILE:-/etc/docsort-backup-password}"
+RESTIC_CACHE_DIR="${DOCSORT_RESTIC_CACHE_DIR:-$BACKUP_ROOT/cache}"
+
+install -d -m 0700 "$RESTIC_CACHE_DIR"
+export RESTIC_CACHE_DIR
+
+RESTIC_REPOSITORY="$LOCAL_REPOSITORY" RESTIC_PASSWORD_FILE="$PASSWORD_FILE" restic check --read-data-subset=5%
+
+if [[ -n "${DOCSORT_R2_REPOSITORY:-}" ]]; then
+  RESTIC_REPOSITORY="$DOCSORT_R2_REPOSITORY" RESTIC_PASSWORD_FILE="$PASSWORD_FILE" restic check
+fi

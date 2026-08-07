@@ -1,0 +1,12 @@
+[Unit]
+Description=Nightly DocSort backup
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+Persistent=true
+RandomizedDelaySec=15m
+Unit=docsort-backup.service
+
+[Install]
+WantedBy=timers.target
+

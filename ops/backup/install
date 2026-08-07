@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+[[ ${EUID:-$(id -u)} -eq 0 ]] || { echo "run as root" >&2; exit 1; }
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+apt-get update
+apt-get install --yes restic rsync sqlite3
+
+install -d -m 0700 /var/backups/docsort
+install -m 0755 "$SCRIPT_DIR/docsort-backup" /usr/local/sbin/docsort-backup
+install -m 0755 "$SCRIPT_DIR/docsort-backup-check" /usr/local/sbin/docsort-backup-check
+install -m 0644 "$SCRIPT_DIR/docsort-backup.service" /etc/systemd/system/docsort-backup.service
+install -m 0644 "$SCRIPT_DIR/docsort-backup.timer" /etc/systemd/system/docsort-backup.timer
+install -m 0644 "$SCRIPT_DIR/docsort-backup-check.service" /etc/systemd/system/docsort-backup-check.service
+install -m 0644 "$SCRIPT_DIR/docsort-backup-check.timer" /etc/systemd/system/docsort-backup-check.timer
+
+if [[ ! -f /etc/docsort-backup.env ]]; then
+  install -m 0600 "$SCRIPT_DIR/docsort-backup.env.example" /etc/docsort-backup.env
+fi
+
+if [[ ! -s /etc/docsort-backup-password ]]; then
+  umask 077
+  head -c 48 /dev/urandom | base64 > /etc/docsort-backup-password
+fi
+chmod 0600 /etc/docsort-backup.env /etc/docsort-backup-password
+
+systemctl daemon-reload
+systemctl enable --now docsort-backup.timer docsort-backup-check.timer
+systemctl list-timers docsort-backup.timer docsort-backup-check.timer --no-pager
+
+echo "Backup services installed. Run: sudo systemctl start docsort-backup.service"
+

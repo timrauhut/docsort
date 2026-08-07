@@ -1,0 +1,12 @@
+[Unit]
+Description=Weekly DocSort backup integrity check
+
+[Timer]
+OnCalendar=Sun *-*-* 05:15:00
+Persistent=true
+RandomizedDelaySec=30m
+Unit=docsort-backup-check.service
+
+[Install]
+WantedBy=timers.target
+
