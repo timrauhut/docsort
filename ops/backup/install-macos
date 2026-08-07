@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+[[ "$(uname -s)" == Darwin ]] || { echo "this installer is for macOS" >&2; exit 1; }
+[[ ${EUID:-$(id -u)} -ne 0 ]] || { echo "run without sudo" >&2; exit 1; }
+command -v brew >/dev/null 2>&1 || { echo "Homebrew is required: https://brew.sh" >&2; exit 1; }
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${DOCSORT_INSTALL_ROOT:-$HOME/Library/Application Support/DocSort}"
+BIN_DIR="$APP_ROOT/bin"
+BACKUP_ROOT="$APP_ROOT/backups"
+LAUNCH_AGENTS_DIR="${DOCSORT_LAUNCH_AGENTS_DIR:-$HOME/Library/LaunchAgents}"
+PLIST="$LAUNCH_AGENTS_DIR/com.docsort.backup.plist"
+
+if [[ "${DOCSORT_DRY_RUN:-false}" != true ]]; then
+  brew list restic >/dev/null 2>&1 || brew install restic
+  brew list sqlite >/dev/null 2>&1 || brew install sqlite
+fi
+install -d -m 0700 "$APP_ROOT" "$BIN_DIR" "$BACKUP_ROOT" "$LAUNCH_AGENTS_DIR"
+install -m 0755 "$SCRIPT_DIR/docsort-backup-macos" "$BIN_DIR/docsort-backup-macos"
+if [[ ! -s "$APP_ROOT/backup-password" ]]; then
+  umask 077
+  openssl rand -base64 48 >"$APP_ROOT/backup-password"
+fi
+chmod 0600 "$APP_ROOT/backup-password"
+if [[ ! -f "$APP_ROOT/backup.env" ]]; then
+  umask 077
+  cat >"$APP_ROOT/backup.env" <<EOF
+DOCSORT_BACKUP_ROOT="$BACKUP_ROOT"
+DOCSORT_RESTIC_PASSWORD_FILE="$APP_ROOT/backup-password"
+# DOCSORT_R2_REPOSITORY=s3:https://ACCOUNT_ID.r2.cloudflarestorage.com/BUCKET/docsort
+# AWS_ACCESS_KEY_ID=
+# AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=auto
+EOF
+fi
+chmod 0600 "$APP_ROOT/backup.env"
+cat >"$PLIST" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.docsort.backup</string>
+  <key>ProgramArguments</key><array><string>$BIN_DIR/docsort-backup-macos</string></array>
+  <key>StartCalendarInterval</key><dict><key>Hour</key><integer>3</integer><key>Minute</key><integer>15</integer></dict>
+  <key>StandardOutPath</key><string>$BACKUP_ROOT/backup.log</string>
+  <key>StandardErrorPath</key><string>$BACKUP_ROOT/backup-error.log</string>
+</dict></plist>
+EOF
+if [[ "${DOCSORT_DRY_RUN:-false}" != true ]]; then
+  launchctl bootout "gui/$(id -u)/com.docsort.backup" >/dev/null 2>&1 || true
+  launchctl bootstrap "gui/$(id -u)" "$PLIST"
+fi
+echo "macOS backup installed. Save $APP_ROOT/backup-password in an offline password manager."

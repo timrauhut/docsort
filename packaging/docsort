@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="0.1.0"
-INSTALL_ROOT="${DOCSORT_INSTALL_ROOT:-/opt/docsort}"
+VERSION="0.2.0"
+if [[ "$(uname -s)" == Darwin ]]; then
+  DEFAULT_INSTALL_ROOT="$HOME/Library/Application Support/DocSort"
+  DEFAULT_BACKUP_ROOT="$DEFAULT_INSTALL_ROOT/backups"
+else
+  DEFAULT_INSTALL_ROOT=/opt/docsort
+  DEFAULT_BACKUP_ROOT=/var/backups/docsort
+fi
+INSTALL_ROOT="${DOCSORT_INSTALL_ROOT:-$DEFAULT_INSTALL_ROOT}"
+BACKUP_ROOT="${DOCSORT_BACKUP_ROOT:-$DEFAULT_BACKUP_ROOT}"
 COMPOSE_FILE="$INSTALL_ROOT/compose.yml"
 ENV_FILE="$INSTALL_ROOT/docsort.env"
 
@@ -194,7 +202,11 @@ EOF
   if [[ "$mode" == domain ]]; then
     say "Open https://$domain"
   else
-    say "Open http://$(hostname -I 2>/dev/null | awk '{print $1}'):$port"
+    local host_address=localhost
+    if [[ "$(uname -s)" == Linux ]]; then
+      host_address="$(hostname -I 2>/dev/null | awk '{print $1}')"
+    fi
+    say "Open http://$host_address:$port"
     say "LAN mode uses HTTP; use a domain install for browser-trusted HTTPS"
   fi
   say "Admin password is stored in $ENV_FILE (mode 600)"
@@ -211,25 +223,31 @@ update_command() {
 status_command() {
   [[ -f "$COMPOSE_FILE" ]] || die "DocSort is not installed"
   compose ps
-  if [[ -f /var/backups/docsort/status.env ]]; then
+  if [[ -f "$BACKUP_ROOT/status.env" ]]; then
     printf '\nBackup status:\n'
-    cat /var/backups/docsort/status.env
+    cat "$BACKUP_ROOT/status.env"
   fi
 }
 
 backup_command() {
-  command -v systemctl >/dev/null 2>&1 || die "systemd is required for managed backups"
-  systemctl cat docsort-backup.service >/dev/null 2>&1 \
-    || die "backup service is not installed; reinstall without DOCSORT_SKIP_BACKUPS=true"
-  systemctl start docsort-backup.service
+  if [[ "$(uname -s)" == Darwin ]]; then
+    local backup_script="$INSTALL_ROOT/bin/docsort-backup-macos"
+    [[ -x "$backup_script" ]] || die "backup service is not installed; reinstall without DOCSORT_SKIP_BACKUPS=true"
+    "$backup_script"
+  else
+    command -v systemctl >/dev/null 2>&1 || die "systemd is required for managed backups"
+    systemctl cat docsort-backup.service >/dev/null 2>&1 \
+      || die "backup service is not installed; reinstall without DOCSORT_SKIP_BACKUPS=true"
+    systemctl start docsort-backup.service
+  fi
   say "Backup completed"
-  [[ -f /var/backups/docsort/status.env ]] && cat /var/backups/docsort/status.env
+  [[ -f "$BACKUP_ROOT/status.env" ]] && cat "$BACKUP_ROOT/status.env"
 }
 
 backup_status_command() {
-  [[ -f /var/backups/docsort/status.env ]] \
+  [[ -f "$BACKUP_ROOT/status.env" ]] \
     || die "no backup status exists yet; run 'docsort backup'"
-  cat /var/backups/docsort/status.env
+  cat "$BACKUP_ROOT/status.env"
 }
 
 credentials_command() {
@@ -239,7 +257,11 @@ credentials_command() {
     say "Admin password: $(sed -n 's/^DOCSORT_ADMIN_PASSWORD=//p' "$ENV_FILE")"
   else
     say "Credentials are stored in $ENV_FILE (mode 600)."
-    say "Run 'sudo docsort credentials --show' to reveal them."
+    if [[ "$(uname -s)" == Darwin ]]; then
+      say "Run 'docsort credentials --show' to reveal them."
+    else
+      say "Run 'sudo docsort credentials --show' to reveal them."
+    fi
   fi
 }
 

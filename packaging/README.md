@@ -1,6 +1,6 @@
 # DocSort one-command installer
 
-The first distribution milestone installs a Docker Compose production stack and a `docsort` lifecycle command on Linux ARM64 or AMD64.
+The installer creates a Docker Compose production stack and a `docsort` lifecycle command on Linux ARM64/AMD64 and macOS Apple Silicon/Intel.
 
 User-facing installation:
 
@@ -14,11 +14,19 @@ LAN-only installation:
 curl -fsSL https://get.docsort.app/install.sh | sudo sh -s -- --lan --image REGISTRY/IMAGE:VERSION
 ```
 
+macOS installation runs as the logged-in user and requires Docker Desktop and Homebrew:
+
+```bash
+curl -fsSL https://get.docsort.app/install.sh | sh -s -- --lan --image REGISTRY/IMAGE:VERSION
+```
+
+On macOS, configuration and encrypted local backups live under `~/Library/Application Support/DocSort`, the CLI is installed to `~/.local/bin/docsort`, and the nightly backup is scheduled with `launchd`. Docker Desktop must be running when DocSort or its backup executes.
+
 LAN mode deliberately reports that it uses HTTP. Browser-trusted, unattended HTTPS requires a registered domain; domain mode uses Caddy and Let's Encrypt automatically.
 
-The installer installs Docker on Linux when needed, generates unique application/admin/WebDAV secrets in `/opt/docsort/docsort.env` with mode `0600`, creates a named `docsort_storage` volume, optionally installs Ollama with `qwen2.5:3b`, starts the app, and waits for `/up`.
+The installer installs Docker on Linux when needed; macOS users install Docker Desktop because it is a signed GUI application requiring normal macOS approval. It generates unique application/admin/WebDAV secrets with mode `0600`, creates a named `docsort_storage` volume, optionally installs Ollama with `qwen2.5:3b`, starts the app, and waits for `/up`.
 
-It also installs the existing Restic backup timers. Local encrypted backups work without cloud credentials and use `/var/backups/docsort/restic`. R2 is enabled later by filling `/etc/docsort-backup.env`; the repository password is generated once at `/etc/docsort-backup-password` with mode `0600` and must be copied to an offline password manager.
+It also installs encrypted Restic backup scheduling. On Linux, local backups use `/var/backups/docsort/restic`, R2 settings live in `/etc/docsort-backup.env`, and the repository password is `/etc/docsort-backup-password`. On macOS, the equivalent files live under `~/Library/Application Support/DocSort`. Local backups work without cloud credentials; the generated repository password must be copied to an offline password manager.
 
 Lifecycle commands:
 
@@ -40,7 +48,7 @@ Uninstall never removes the persistent data volume or secrets directory. Destruc
 The application image is not yet hosted in a public registry. Before releasing the installer:
 
 1. Publish the existing Dockerfile as a signed multi-architecture image and set that immutable image reference in the download-page command. Do not rely on an unpinned `latest` tag for customer upgrades.
-2. Publish `packaging/docsort` as `docsort`, `packaging/install.sh` as `install.sh`, and a tar archive containing the contents of `ops/backup/` as `backup.tar.gz` under the same download base.
+2. Publish `packaging/docsort` as `docsort`, `packaging/install.sh` as `install.sh`, and a tar archive preserving executable modes and containing the contents of `ops/backup/` as `backup.tar.gz` under the same download base.
 
 ## Local smoke test
 
