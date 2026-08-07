@@ -25,6 +25,7 @@ Create a token restricted to the backup bucket and edit `/etc/docsort-backup.env
 DOCSORT_R2_REPOSITORY=s3:https://ACCOUNT_ID.r2.cloudflarestorage.com/BUCKET/docsort
 AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
+AWS_DEFAULT_REGION=auto
 ```
 
 Then run a backup and inspect its status without displaying secrets:
@@ -42,4 +43,3 @@ sudo cat /var/backups/docsort/status.env
 - Retention per repository: 7 daily, 8 weekly, and 12 monthly snapshots.
 
 The job aborts when the backup filesystem has less than 20% free space or when the DocSort web container cannot be identified.
-
