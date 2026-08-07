@@ -31,6 +31,11 @@ class UsersController < ApplicationController
     @user.assign_attributes(attrs)
     assign_admin_flag(@user)
 
+    if demoting_last_admin?
+      redirect_to edit_user_path(@user), alert: "Keep at least one admin account."
+      return
+    end
+
     if @user.save
       @user.ensure_storage!
       redirect_to users_path, notice: "User “#{@user.username}” updated."
@@ -69,5 +74,13 @@ class UsersController < ApplicationController
     return unless params.require(:user).key?(:admin)
 
     user.admin = ActiveModel::Type::Boolean.new.cast(params.require(:user)[:admin])
+  end
+
+  # Destroy already blocks deleting the last admin; update must not uncheck it either.
+  def demoting_last_admin?
+    return false unless @user.will_save_change_to_admin?
+    return false if @user.admin?
+
+    User.where(admin: true).where.not(id: @user.id).none?
   end
 end

@@ -1,6 +1,8 @@
 # Maps a detected issuer (company/brand) to an existing category, or optionally
 # creates a new category under issuers/<slug> as a potential filing home.
 class IssuerCategoryResolver
+  MIN_KEYWORD_LENGTH = 4
+
   def initialize(issuer_name, confidence: 0.0, auto_create: nil)
     @issuer_name = issuer_name.to_s.strip
     @confidence = confidence.to_f
@@ -23,11 +25,20 @@ class IssuerCategoryResolver
 
     needle = @issuer_name.downcase
     Category.ordered.find do |category|
-      category.name.downcase == needle ||
-        category.name.downcase.include?(needle) ||
-        needle.include?(category.name.downcase) ||
-        category.keyword_list.any? { |kw| needle.include?(kw.downcase) || kw.downcase.include?(needle) }
+      name = category.name.to_s.downcase.strip
+      next true if name == needle
+      next true if name.parameterize == slug
+
+      # Keywords only: whole-token match, min length (no short bidirectional includes).
+      category.keyword_list.any? { |kw| keyword_token_match?(needle, kw) }
     end
+  end
+
+  def keyword_token_match?(needle, keyword)
+    token = keyword.to_s.downcase.strip
+    return false if token.length < MIN_KEYWORD_LENGTH
+
+    needle == token || needle.match?(/\b#{Regexp.escape(token)}\b/i)
   end
 
   def create_issuer_category

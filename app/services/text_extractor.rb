@@ -4,6 +4,8 @@
 #   1. Read the embedded text layer on every page (pdf-reader) — preferred.
 #   2. Only if a page is empty/sparse, fall back to Tesseract OCR for that page.
 #   3. Images (PNG/JPEG/…) always use OCR when available.
+require "timeout"
+
 class TextExtractor
   # Stored / search corpus — keep multi-page text, not just a short snippet.
   MAX_CHARS = ENV.fetch("DOCSORT_EXTRACT_MAX_CHARS", "100000").to_i
@@ -159,8 +161,7 @@ class TextExtractor
   def ocr_pdf_page(path, page_num)
     Dir.mktmpdir("docsort-ocr") do |dir|
       prefix = File.join(dir, "page")
-      # Render a single page to PNG
-      ok = system(
+      _out, err, status = capture3_with_timeout(
         "pdftoppm",
         "-f", page_num.to_s,
         "-l", page_num.to_s,
@@ -168,12 +169,10 @@ class TextExtractor
         "-r", OCR_DPI.to_s,
         "-singlefile",
         path,
-        prefix,
-        out: File::NULL,
-        err: File::NULL
+        prefix
       )
-      unless ok
-        Rails.logger.warn("TextExtractor pdftoppm failed for page #{page_num}")
+      unless status&.success?
+        Rails.logger.warn("TextExtractor pdftoppm failed for page #{page_num}: #{err.to_s.truncate(200)}")
         return ""
       end
 
@@ -182,29 +181,59 @@ class TextExtractor
 
       ocr_image(image)
     end
+  rescue Timeout::Error
+    Rails.logger.warn("TextExtractor OCR page #{page_num} timed out after #{OCR_TIMEOUT}s")
+    ""
   rescue StandardError => e
     Rails.logger.warn("TextExtractor OCR page #{page_num} failed: #{e.message}")
     ""
   end
 
   def ocr_image(image_path)
-    require "open3"
-
-    cmd = [
+    stdout, stderr, status = capture3_with_timeout(
       "tesseract",
       image_path,
       "stdout",
       "-l", OCR_LANGS,
       "--psm", "3"
-    ]
-
-    stdout, stderr, status = Open3.capture3(*cmd)
-    unless status.success?
+    )
+    unless status&.success?
       Rails.logger.warn("TextExtractor tesseract failed: #{stderr.to_s.truncate(200)}")
       return ""
     end
 
     stdout.to_s.force_encoding("UTF-8").scrub.strip
+  rescue Timeout::Error
+    Rails.logger.warn("TextExtractor tesseract timed out after #{OCR_TIMEOUT}s")
+    ""
+  end
+
+  # Run an external OCR helper with a hard deadline so Pi jobs cannot hang forever.
+  def capture3_with_timeout(*cmd, timeout: OCR_TIMEOUT)
+    require "open3"
+    require "timeout"
+
+    Open3.popen3(*cmd) do |stdin, stdout, stderr, wait_thr|
+      stdin.close
+      begin
+        Timeout.timeout(timeout) do
+          out = stdout.read
+          err = stderr.read
+          [ out, err, wait_thr.value ]
+        end
+      rescue Timeout::Error
+        pid = wait_thr.pid
+        begin
+          Process.kill("TERM", pid)
+          sleep 0.2
+          Process.kill("KILL", pid) if wait_thr.alive?
+        rescue Errno::ESRCH, Errno::EPERM
+          # process already gone
+        end
+        wait_thr.value rescue nil
+        raise
+      end
+    end
   end
 
   def sparse_page?(text)

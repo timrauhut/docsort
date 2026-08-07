@@ -6,6 +6,12 @@ class ClassifyDocumentJob < ApplicationJob
   def perform(document_id)
     document = Document.find(document_id)
 
+    if document.user.blank?
+      document.update(status: "failed", error_message: "Document has no owner")
+      Rails.logger.error("ClassifyDocumentJob skipped ##{document_id}: missing user_id")
+      return
+    end
+
     # Always (re)run — do not bail on "processing" or a crashed prior job leaves
     # the document stuck forever and reclassify races become no-ops.
     document.update!(status: "processing", error_message: nil)
