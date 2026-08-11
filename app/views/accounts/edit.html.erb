@@ -1,0 +1,37 @@
+<% content_for :title, "Finish setup · DocSort" %>
+
+<section class="auth-panel">
+  <p class="eyebrow">First-run setup</p>
+  <h1 class="display" style="font-size:1.75rem;margin:0.35rem 0 0.5rem">Choose your password</h1>
+  <p class="summary-body" style="margin-bottom:1.25rem">
+    Replace the generated installation password before using DocSort. Your new password also works for WebDAV.
+  </p>
+
+  <% if current_user.errors.any? %>
+    <div class="flash flash-alert" role="alert">
+      <ul style="margin:0;padding-left:1.1rem">
+        <% current_user.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <%= form_with url: account_path, method: :patch, scope: :account, local: true, class: "auth-form" do |form| %>
+    <div class="field">
+      <%= form.label :current_password, "Installation password" %>
+      <%= form.password_field :current_password, class: "input", autocomplete: "current-password", required: true, autofocus: true %>
+    </div>
+    <div class="field">
+      <%= form.label :password, "New password" %>
+      <%= form.password_field :password, class: "input", autocomplete: "new-password", required: true, minlength: 6, maxlength: 72 %>
+    </div>
+    <div class="field">
+      <%= form.label :password_confirmation, "Confirm new password" %>
+      <%= form.password_field :password_confirmation, class: "input", autocomplete: "new-password", required: true, minlength: 6, maxlength: 72 %>
+    </div>
+    <%= form.submit "Finish setup", class: "btn btn-upload", style: "border:none;cursor:pointer;font:inherit;width:100%;justify-content:center" %>
+  <% end %>
+
+  <%= button_to "Sign out", logout_path, method: :delete, class: "btn btn-ghost", form: { style: "margin-top:0.75rem;text-align:center" } %>
+</section>

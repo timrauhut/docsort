@@ -7,6 +7,7 @@ class ApplicationController < ActionController::Base
 
   before_action :require_secure_transport
   before_action :require_login
+  before_action :require_password_change
 
   helper_method :current_user, :logged_in?
 
@@ -40,5 +41,12 @@ class ApplicationController < ActionController::Base
     return if current_user&.admin?
 
     redirect_to root_path, alert: "Admin access required."
+  end
+
+  def require_password_change
+    return unless current_user&.password_change_required?
+    return if controller_name == "accounts"
+
+    redirect_to edit_account_path, alert: "Choose a new password to finish setting up DocSort."
   end
 end

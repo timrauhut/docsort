@@ -126,7 +126,7 @@ install_command() {
   local mode="${DOCSORT_MODE:-lan}"
   local domain="${DOCSORT_DOMAIN:-}"
   local port="${DOCSORT_PORT:-3000}"
-  local image="${DOCSORT_IMAGE:-docsort:latest}"
+  local image="${DOCSORT_IMAGE:-ghcr.io/timrauhut/docsort:stable}"
   local ollama="${DOCSORT_OLLAMA:-true}"
   local admin_password
   admin_password="$(random_secret 24)"
@@ -161,6 +161,7 @@ DOCSORT_PORT=$port
 SECRET_KEY_BASE=$(random_secret 64)
 DOCSORT_ADMIN_USERNAME=admin
 DOCSORT_ADMIN_PASSWORD=$admin_password
+DOCSORT_REQUIRE_INITIAL_PASSWORD_CHANGE=true
 WEBDAV_PASSWORD=$admin_password
 OLLAMA_HOST=http://ollama:11434
 OLLAMA_MODEL=qwen2.5:3b
@@ -209,15 +210,63 @@ EOF
     say "Open http://$host_address:$port"
     say "LAN mode uses HTTP; use a domain install for browser-trusted HTTPS"
   fi
-  say "Admin password is stored in $ENV_FILE (mode 600)"
+  printf '\n'
+  say "INITIAL SIGN-IN CREDENTIALS"
+  say "Username: admin"
+  say "Password: $admin_password"
+  say "Save this password now. You can change it after signing in."
+  say "The initial credentials are also stored securely in $ENV_FILE (mode 600)."
+  if [[ "$(uname -s)" == Darwin ]]; then
+    say "Before changing the password, show them again with: $HOME/.local/bin/docsort credentials --show"
+  else
+    say "Before changing the password, show them again with: sudo docsort credentials --show"
+  fi
+  printf '\n'
 }
 
 update_command() {
   [[ -f "$ENV_FILE" && -f "$COMPOSE_FILE" ]] || die "DocSort is not installed at $INSTALL_ROOT"
+
+  local configured_image old_image_id new_image_id rollback_image
+  configured_image="$(sed -n 's/^DOCSORT_IMAGE=//p' "$ENV_FILE")"
+  [[ -n "$configured_image" ]] || die "DOCSORT_IMAGE is missing from $ENV_FILE"
+  old_image_id="$(docker image inspect --format '{{.Id}}' "$configured_image" 2>/dev/null || true)"
+  [[ -n "$old_image_id" ]] || die "installed image $configured_image was not found"
+
+  say "Creating a verified backup before updating"
+  backup_command
+
+  say "Pulling updated containers"
   compose pull
-  compose up --detach --remove-orphans
-  compose exec --no-TTY web curl --fail --silent http://localhost/up >/dev/null
-  say "Update complete"
+  new_image_id="$(docker image inspect --format '{{.Id}}' "$configured_image" 2>/dev/null || true)"
+  [[ -n "$new_image_id" ]] || die "updated image $configured_image was not found after pull"
+  if [[ "$new_image_id" == "$old_image_id" ]]; then
+    say "The installed DocSort image is already current; refreshing supporting containers"
+  fi
+
+  rollback_image="docsort-rollback:$(date -u +%Y%m%d%H%M%S)"
+  docker image tag "$old_image_id" "$rollback_image"
+
+  if ! compose up --detach --remove-orphans || ! wait_for_web_health 60; then
+    say "Update failed; restoring the previous container image"
+    DOCSORT_IMAGE="$rollback_image" compose up --detach --remove-orphans || \
+      die "rollback could not start; run 'docsort logs web'"
+    wait_for_web_health 60 || die "rollback started but did not become healthy; run 'docsort logs web'"
+    die "update failed and the previous version was restored"
+  fi
+
+  docker image rm "$rollback_image" >/dev/null 2>&1 || true
+  say "Update complete and healthy"
+}
+
+wait_for_web_health() {
+  local max_attempts="$1"
+  local attempts=0
+  until compose exec --no-TTY web curl --fail --silent http://localhost/up >/dev/null 2>&1; do
+    attempts=$((attempts + 1))
+    (( attempts < max_attempts )) || return 1
+    sleep 2
+  done
 }
 
 status_command() {
@@ -253,10 +302,11 @@ backup_status_command() {
 credentials_command() {
   [[ -f "$ENV_FILE" ]] || die "DocSort is not installed at $INSTALL_ROOT"
   if [[ "${1:-}" == --show ]]; then
-    say "Admin username: $(sed -n 's/^DOCSORT_ADMIN_USERNAME=//p' "$ENV_FILE")"
-    say "Admin password: $(sed -n 's/^DOCSORT_ADMIN_PASSWORD=//p' "$ENV_FILE")"
+    say "Initial admin username: $(sed -n 's/^DOCSORT_ADMIN_USERNAME=//p' "$ENV_FILE")"
+    say "Initial admin password: $(sed -n 's/^DOCSORT_ADMIN_PASSWORD=//p' "$ENV_FILE")"
+    say "The password above is no longer valid if it was changed in the web app."
   else
-    say "Credentials are stored in $ENV_FILE (mode 600)."
+    say "Initial installation credentials are stored in $ENV_FILE (mode 600)."
     if [[ "$(uname -s)" == Darwin ]]; then
       say "Run 'docsort credentials --show' to reveal them."
     else

@@ -58,6 +58,9 @@ module Docsort
       "DOCSORT_ADMIN_PASSWORD",
       ENV.fetch("WEBDAV_PASSWORD", "changeme")
     ).to_s.strip
+    config.x.admin.require_password_change = ActiveModel::Type::Boolean.new.cast(
+      ENV.fetch("DOCSORT_REQUIRE_INITIAL_PASSWORD_CHANGE", "false")
+    )
 
 
     # When an issuer/brand is detected and no type category fits well,

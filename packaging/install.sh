@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-DOWNLOAD_BASE="${DOCSORT_DOWNLOAD_BASE:-https://get.docsort.app}"
+DOWNLOAD_BASE="${DOCSORT_DOWNLOAD_BASE:-https://github.com/timrauhut/docsort/releases/latest/download}"
 os_name="$(uname -s)"
 if [ "$os_name" = Darwin ]; then
   INSTALL_BIN="${DOCSORT_INSTALL_BIN:-$HOME/.local/bin/docsort}"

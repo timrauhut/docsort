@@ -11,7 +11,8 @@ if User.none?
     username: admin_username,
     password: admin_password,
     password_confirmation: admin_password,
-    admin: true
+    admin: true,
+    password_change_required: Rails.application.config.x.admin.require_password_change
   )
   admin.ensure_storage!
   puts "  ✓ admin user “#{admin.username}” (web + WebDAV)"

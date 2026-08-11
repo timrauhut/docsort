@@ -1,5 +1,6 @@
 class SessionsController < ApplicationController
   skip_before_action :require_login, only: %i[new create]
+  skip_before_action :require_password_change
   allow_browser versions: :modern
 
   def new
@@ -9,10 +10,13 @@ class SessionsController < ApplicationController
   def create
     user = User.authenticate(params[:username], params[:password])
     if user
+      return_to = session.delete(:return_to)
       reset_session
       session[:user_id] = user.id
       user.ensure_storage!
-      redirect_to(session.delete(:return_to).presence || root_path, notice: "Signed in as #{user.username}.")
+      destination = user.password_change_required? ? edit_account_path : return_to.presence || root_path
+      notice = user.password_change_required? ? "Choose a new password to finish setup." : "Signed in as #{user.username}."
+      redirect_to destination, notice: notice
     else
       flash.now[:alert] = "Invalid username or password."
       render :new, status: :unprocessable_entity
