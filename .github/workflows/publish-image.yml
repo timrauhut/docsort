@@ -1,8 +1,8 @@
 name: Publish container image
 
 on:
-  release:
-    types: [published]
+  push:
+    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
@@ -45,7 +45,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha
-            type=raw,value=stable,enable=${{ github.event_name == 'release' && !github.event.release.prerelease }}
+            type=raw,value=stable,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Build and publish amd64 and arm64 images
         id: push
@@ -69,7 +69,7 @@ jobs:
           push-to-registry: true
 
       - name: Package installer artifacts
-        if: github.event_name == 'release'
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -p dist
           install -m 0755 packaging/install.sh dist/install.sh
@@ -77,9 +77,10 @@ jobs:
           tar -czf dist/backup.tar.gz -C ops/backup .
 
       - name: Attach installer artifacts to release
-        if: github.event_name == 'release'
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          generate_release_notes: true
           files: |
             dist/install.sh
             dist/docsort

@@ -47,7 +47,7 @@ Uninstall never removes the persistent data volume or secrets directory. Destruc
 
 ## Publishing
 
-1. Publish a GitHub Release. `.github/workflows/publish-image.yml` builds `linux/amd64` and `linux/arm64`, publishes version, SHA, and `stable` tags to `ghcr.io/timrauhut/docsort`, generates an SBOM/provenance, creates a GitHub build attestation, and attaches `install.sh`, `docsort`, and `backup.tar.gz` to the release. The installer downloads those assets through GitHub's `releases/latest/download` endpoint. It follows the explicit `stable` image channel and never uses `latest`; immutable version and SHA tags remain available for pinning and rollback.
+1. Push a version tag such as `v0.3.0`. `.github/workflows/publish-image.yml` creates the GitHub Release, builds `linux/amd64` and `linux/arm64`, publishes version, SHA, and `stable` tags to `ghcr.io/timrauhut/docsort`, generates an SBOM/provenance, creates a GitHub build attestation, and attaches `install.sh`, `docsort`, and `backup.tar.gz` to the release. The installer downloads those assets through GitHub's `releases/latest/download` endpoint. It follows the explicit `stable` image channel and never uses `latest`; immutable version and SHA tags remain available for pinning and rollback.
 2. After the first publish, set the `ghcr.io/timrauhut/docsort` package visibility to public so installations can pull it without GitHub credentials.
 
 ## Local smoke test
