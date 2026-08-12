@@ -44,4 +44,3 @@ module ApplicationHelper
     "--cat:#{category.color}"
   end
 end
-
