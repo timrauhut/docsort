@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="0.4.2"
+VERSION="0.5.0"
 if [[ "$(uname -s)" == Darwin ]]; then
   DEFAULT_INSTALL_ROOT="$HOME/Library/Application Support/DocSort"
   DEFAULT_BACKUP_ROOT="$DEFAULT_INSTALL_ROOT/backups"
@@ -108,6 +108,24 @@ YAML
       - caddy_data:/data
       - caddy_config:/config
 YAML
+  elif [[ "$mode" == lan-tls ]]; then
+    cat >>"$COMPOSE_FILE" <<'YAML'
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./tls:/etc/docsort/tls:ro
+      - caddy_data:/data
+      - caddy_config:/config
+YAML
   fi
 
   cat >>"$COMPOSE_FILE" <<'YAML'
@@ -120,7 +138,7 @@ YAML
   if [[ "$ollama" == true ]]; then
     printf '%s\n' '  ollama_data:' '    name: ${DOCSORT_OLLAMA_VOLUME}' >>"$COMPOSE_FILE"
   fi
-  if [[ "$mode" == domain ]]; then
+  if [[ "$mode" == domain || "$mode" == lan-tls ]]; then
     printf '%s\n' '  caddy_data:' '  caddy_config:' >>"$COMPOSE_FILE"
   fi
 }
@@ -155,6 +173,8 @@ install_command() {
   local storage_volume="${DOCSORT_STORAGE_VOLUME:-docsort_storage}"
   local ollama_volume="${DOCSORT_OLLAMA_VOLUME:-ollama_data}"
   local adopt_existing_volume=false
+  local tls_certificate="${DOCSORT_TLS_CERTIFICATE_FILE:-}"
+  local tls_private_key="${DOCSORT_TLS_PRIVATE_KEY_FILE:-}"
   local admin_password
   admin_password="$(random_secret 24)"
 
@@ -162,6 +182,9 @@ install_command() {
     case "$1" in
       --domain) mode=domain; domain="${2:?missing domain}"; shift 2 ;;
       --lan) mode=lan; shift ;;
+      --lan-tls) mode=lan-tls; shift ;;
+      --tls-certificate) tls_certificate="${2:?missing certificate file}"; shift 2 ;;
+      --tls-private-key) tls_private_key="${2:?missing private key file}"; shift 2 ;;
       --port) port="${2:?missing port}"; shift 2 ;;
       --image) image="${2:?missing image}"; shift 2 ;;
       --no-ollama) ollama=false; shift ;;
@@ -175,7 +198,7 @@ install_command() {
     esac
   done
 
-  [[ "$mode" == lan || "$mode" == domain ]] || die "mode must be lan or domain"
+  [[ "$mode" == lan || "$mode" == lan-tls || "$mode" == domain ]] || die "mode must be lan, lan-tls, or domain"
   [[ "$ollama" == true || "$ollama" == false ]] || die "DOCSORT_OLLAMA must be true or false"
   valid_name "$project_name" || die "invalid project name: $project_name"
   valid_name "$storage_volume" || die "invalid storage volume name: $storage_volume"
@@ -185,6 +208,11 @@ install_command() {
     || die "unsafe installation root: $INSTALL_ROOT"
   if [[ "$mode" == domain ]]; then
     [[ "$domain" == *.* && "$domain" != *.local ]] || die "a registered public domain is required for automatic HTTPS"
+    port_in_use 80 && die "port 80 is already in use"
+    port_in_use 443 && die "port 443 is already in use"
+  elif [[ "$mode" == lan-tls ]]; then
+    [[ -f "$tls_certificate" ]] || die "LAN TLS certificate file not found; pass --tls-certificate"
+    [[ -f "$tls_private_key" ]] || die "LAN TLS private key file not found; pass --tls-private-key"
     port_in_use 80 && die "port 80 is already in use"
     port_in_use 443 && die "port 443 is already in use"
   elif port_in_use "$port"; then
@@ -222,7 +250,7 @@ install_command() {
   cat >"$ENV_FILE" <<EOF
 DOCSORT_IMAGE=$image
 DOCSORT_MODE=$mode
-DOCSORT_DOMAIN=$domain
+DOCSORT_DOMAIN=$([[ "$mode" == lan-tls ]] && echo docsort.local || echo "$domain")
 DOCSORT_PORT=$port
 DOCSORT_PROJECT_NAME=$project_name
 DOCSORT_STORAGE_VOLUME=$storage_volume
@@ -237,12 +265,23 @@ WEBDAV_PASSWORD=$admin_password
 OLLAMA_HOST=$ollama_host
 OLLAMA_MODEL=qwen2.5:3b
 OLLAMA_TIMEOUT=600
-ASSUME_SSL=$([[ "$mode" == domain ]] && echo true || echo false)
-FORCE_SSL=$([[ "$mode" == domain ]] && echo true || echo false)
+ASSUME_SSL=$([[ "$mode" == domain || "$mode" == lan-tls ]] && echo true || echo false)
+FORCE_SSL=$([[ "$mode" == domain || "$mode" == lan-tls ]] && echo true || echo false)
 DOCSORT_ALLOW_INSECURE_AUTH=$([[ "$mode" == lan ]] && echo true || echo false)
 DOCSORT_ALLOW_INSECURE_WEBDAV=$([[ "$mode" == lan ]] && echo true || echo false)
 EOF
   chmod 0600 "$ENV_FILE"
+  if [[ "$mode" == lan-tls ]]; then
+    install -d -m 0700 "$INSTALL_ROOT/tls"
+    install -m 0644 "$tls_certificate" "$INSTALL_ROOT/tls/certificate.pem"
+    install -m 0600 "$tls_private_key" "$INSTALL_ROOT/tls/private-key.pem"
+    cat >"$INSTALL_ROOT/Caddyfile" <<'CADDY'
+https://docsort.local, https://docsort {
+  tls /etc/docsort/tls/certificate.pem /etc/docsort/tls/private-key.pem
+  reverse_proxy web:80
+}
+CADDY
+  fi
   write_compose "$mode" "$ollama"
 
   if [[ "${DOCSORT_DRY_RUN:-false}" == true ]]; then
@@ -284,6 +323,9 @@ EOF
   trap - ERR
   if [[ "$mode" == domain ]]; then
     say "Open https://$domain"
+  elif [[ "$mode" == lan-tls ]]; then
+    say "Open https://docsort.local"
+    say "LAN TLS requires trusting the certificate issuer on each client device"
   else
     local host_address=localhost
     if [[ "$(uname -s)" == Linux ]]; then
@@ -373,9 +415,10 @@ backup_command() {
     "$backup_script"
   else
     command -v systemctl >/dev/null 2>&1 || die "systemd is required for managed backups"
-    systemctl cat docsort-backup.service >/dev/null 2>&1 \
+    local unit="docsort-backup-${PROJECT_NAME}.service"
+    systemctl cat "$unit" >/dev/null 2>&1 \
       || die "backup service is not installed; reinstall without DOCSORT_SKIP_BACKUPS=true"
-    systemctl start docsort-backup.service
+    systemctl start "$unit"
   fi
   say "Backup completed"
   [[ -f "$BACKUP_ROOT/status.env" ]] && cat "$BACKUP_ROOT/status.env"
@@ -443,7 +486,8 @@ case "${1:-help}" in
     cat <<EOF
 Usage: docsort COMMAND
 
-  install [--domain NAME|--lan] [--port N] [--image IMAGE] [--no-ollama]
+  install [--domain NAME|--lan|--lan-tls] [--port N] [--image IMAGE] [--no-ollama]
+          [--tls-certificate FILE --tls-private-key FILE]
           [--ollama-host URL] [--project-name NAME] [--storage-volume NAME]
           [--ollama-volume NAME] [--adopt-existing-volume]
   update | status | logs | backup | backup-status | credentials | doctor

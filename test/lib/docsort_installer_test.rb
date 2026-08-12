@@ -70,14 +70,24 @@ class DocsortInstallerTest < ActiveSupport::TestCase
     refute_path_exists root
   end
 
+  test "LAN TLS requires certificate files before writing configuration" do
+    root = File.join(@tmp, "tls")
+    _out, error, status = run_cli(root, "--lan-tls", "--tls-certificate", "/missing/cert", "--tls-private-key", "/missing/key", include_lan: false)
+
+    refute status.success?
+    assert_includes error, "LAN TLS certificate file not found"
+    refute_path_exists root
+  end
+
   private
 
-  def run_cli(root, *arguments, extra_env: {})
+  def run_cli(root, *arguments, extra_env: {}, include_lan: true)
     env = {
       "PATH" => "#{@bin}:#{ENV.fetch("PATH")}",
       "DOCSORT_INSTALL_ROOT" => root,
       "DOCSORT_DRY_RUN" => "true"
     }.merge(extra_env)
-    Open3.capture3(env, Rails.root.join("packaging/docsort").to_s, "install", "--lan", *arguments)
+    mode_arguments = include_lan ? [ "--lan" ] : []
+    Open3.capture3(env, Rails.root.join("packaging/docsort").to_s, "install", *mode_arguments, *arguments)
   end
 end

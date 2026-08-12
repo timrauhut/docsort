@@ -4,31 +4,101 @@ set -Eeuo pipefail
 [[ ${EUID:-$(id -u)} -eq 0 ]] || { echo "run as root" >&2; exit 1; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_ROOT="${DOCSORT_INSTALL_ROOT:-/opt/docsort}"
+APP_ENV="$INSTALL_ROOT/docsort.env"
+PROJECT="${DOCSORT_BACKUP_PROJECT:-}"
+STORAGE_VOLUME="${DOCSORT_STORAGE_VOLUME:-}"
+if [[ -f "$APP_ENV" ]]; then
+  [[ -n "$PROJECT" ]] || PROJECT="$(sed -n 's/^DOCSORT_PROJECT_NAME=//p' "$APP_ENV")"
+  [[ -n "$STORAGE_VOLUME" ]] || STORAGE_VOLUME="$(sed -n 's/^DOCSORT_STORAGE_VOLUME=//p' "$APP_ENV")"
+fi
+PROJECT="${PROJECT:-docsort}"
+STORAGE_VOLUME="${STORAGE_VOLUME:-docsort_storage}"
+[[ "$PROJECT" =~ ^[a-z0-9][a-z0-9_.-]*$ ]] || { echo "invalid backup project" >&2; exit 1; }
+
+UNIT="docsort-backup-${PROJECT}"
+BACKUP_ROOT="${DOCSORT_BACKUP_ROOT:-/var/backups/$PROJECT}"
+CONFIG_FILE="/etc/${UNIT}.env"
+PASSWORD_FILE="/etc/${UNIT}-password"
+BACKUP_BIN="/usr/local/sbin/${UNIT}"
+CHECK_BIN="/usr/local/sbin/${UNIT}-check"
 
 apt-get update
 apt-get install --yes restic rsync sqlite3
 
-install -d -m 0700 /var/backups/docsort
-install -m 0755 "$SCRIPT_DIR/docsort-backup" /usr/local/sbin/docsort-backup
-install -m 0755 "$SCRIPT_DIR/docsort-backup-check" /usr/local/sbin/docsort-backup-check
-install -m 0644 "$SCRIPT_DIR/docsort-backup.service" /etc/systemd/system/docsort-backup.service
-install -m 0644 "$SCRIPT_DIR/docsort-backup.timer" /etc/systemd/system/docsort-backup.timer
-install -m 0644 "$SCRIPT_DIR/docsort-backup-check.service" /etc/systemd/system/docsort-backup-check.service
-install -m 0644 "$SCRIPT_DIR/docsort-backup-check.timer" /etc/systemd/system/docsort-backup-check.timer
+install -d -m 0700 "$BACKUP_ROOT"
+install -m 0755 "$SCRIPT_DIR/docsort-backup" "$BACKUP_BIN"
+install -m 0755 "$SCRIPT_DIR/docsort-backup-check" "$CHECK_BIN"
 
-if [[ ! -f /etc/docsort-backup.env ]]; then
-  install -m 0600 "$SCRIPT_DIR/docsort-backup.env.example" /etc/docsort-backup.env
-fi
-
-if [[ ! -s /etc/docsort-backup-password ]]; then
+if [[ ! -f "$CONFIG_FILE" ]]; then
   umask 077
-  head -c 48 /dev/urandom | base64 > /etc/docsort-backup-password
+  cat >"$CONFIG_FILE" <<EOF
+DOCSORT_PROJECT_NAME=$PROJECT
+DOCSORT_BACKUP_ROOT=$BACKUP_ROOT
+DOCSORT_LOCAL_REPOSITORY=$BACKUP_ROOT/restic
+DOCSORT_RESTIC_PASSWORD_FILE=$PASSWORD_FILE
+DOCSORT_RESTIC_CACHE_DIR=$BACKUP_ROOT/cache
+DOCSORT_STORAGE_VOLUME=$STORAGE_VOLUME
+DOCSORT_BACKUP_STATUS_FILE=$BACKUP_ROOT/status.env
+DOCSORT_BACKUP_LOCK_FILE=/run/lock/${UNIT}.lock
+DOCSORT_BACKUP_MIN_FREE_PERCENT=20
+EOF
 fi
-chmod 0600 /etc/docsort-backup.env /etc/docsort-backup-password
+
+if [[ ! -s "$PASSWORD_FILE" ]]; then
+  umask 077
+  head -c 48 /dev/urandom | base64 >"$PASSWORD_FILE"
+fi
+chmod 0600 "$CONFIG_FILE" "$PASSWORD_FILE"
+
+cat >"/etc/systemd/system/${UNIT}.service" <<EOF
+[Unit]
+Description=Back up DocSort project $PROJECT
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+[Service]
+Type=oneshot
+Environment=DOCSORT_BACKUP_CONFIG=$CONFIG_FILE
+ExecStart=$BACKUP_BIN
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+EOF
+cat >"/etc/systemd/system/${UNIT}.timer" <<EOF
+[Unit]
+Description=Nightly backup for DocSort project $PROJECT
+[Timer]
+OnCalendar=*-*-* 03:15:00
+Persistent=true
+RandomizedDelaySec=15m
+Unit=${UNIT}.service
+[Install]
+WantedBy=timers.target
+EOF
+cat >"/etc/systemd/system/${UNIT}-check.service" <<EOF
+[Unit]
+Description=Verify backups for DocSort project $PROJECT
+After=network-online.target
+[Service]
+Type=oneshot
+Environment=DOCSORT_BACKUP_CONFIG=$CONFIG_FILE
+ExecStart=$CHECK_BIN
+EOF
+cat >"/etc/systemd/system/${UNIT}-check.timer" <<EOF
+[Unit]
+Description=Weekly backup verification for DocSort project $PROJECT
+[Timer]
+OnCalendar=Sun *-*-* 04:30:00
+Persistent=true
+RandomizedDelaySec=30m
+Unit=${UNIT}-check.service
+[Install]
+WantedBy=timers.target
+EOF
 
 systemctl daemon-reload
-systemctl enable --now docsort-backup.timer docsort-backup-check.timer
-systemctl list-timers docsort-backup.timer docsort-backup-check.timer --no-pager
+systemctl enable --now "${UNIT}.timer" "${UNIT}-check.timer"
+systemctl list-timers "${UNIT}.timer" "${UNIT}-check.timer" --no-pager
 
-echo "Backup services installed. Run: sudo systemctl start docsort-backup.service"
-
+echo "Backup services installed. Run: sudo systemctl start ${UNIT}.service"

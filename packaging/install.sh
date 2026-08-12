@@ -95,7 +95,9 @@ if [ "${DOCSORT_SKIP_BACKUPS:-false}" != true ]; then
   if [ "$os_name" = Darwin ]; then
     "$backup_dir/install-macos"
   else
-    "$backup_dir/install"
+    DOCSORT_INSTALL_ROOT="${DOCSORT_INSTALL_ROOT:-/opt/docsort}" \
+      DOCSORT_BACKUP_ROOT="${DOCSORT_BACKUP_ROOT:-}" \
+      "$backup_dir/install"
   fi
 fi
 
