@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="0.4.0"
+VERSION="0.4.1"
 if [[ "$(uname -s)" == Darwin ]]; then
   DEFAULT_INSTALL_ROOT="$HOME/Library/Application Support/DocSort"
   DEFAULT_BACKUP_ROOT="$DEFAULT_INSTALL_ROOT/backups"
@@ -13,11 +13,16 @@ INSTALL_ROOT="${DOCSORT_INSTALL_ROOT:-$DEFAULT_INSTALL_ROOT}"
 BACKUP_ROOT="${DOCSORT_BACKUP_ROOT:-$DEFAULT_BACKUP_ROOT}"
 COMPOSE_FILE="$INSTALL_ROOT/compose.yml"
 ENV_FILE="$INSTALL_ROOT/docsort.env"
+PROJECT_NAME="${DOCSORT_PROJECT_NAME:-}"
+if [[ -z "$PROJECT_NAME" && -f "$ENV_FILE" ]]; then
+  PROJECT_NAME="$(sed -n 's/^DOCSORT_PROJECT_NAME=//p' "$ENV_FILE")"
+fi
+PROJECT_NAME="${PROJECT_NAME:-docsort}"
 
 say() { printf 'DocSort: %s\n' "$*"; }
 die() { say "ERROR: $*" >&2; exit 1; }
 require() { command -v "$1" >/dev/null 2>&1 || die "missing command: $1"; }
-compose() { docker compose --project-name docsort --file "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"; }
+compose() { docker compose --project-name "$PROJECT_NAME" --file "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"; }
 
 random_secret() {
   openssl rand -hex "$1"
@@ -28,7 +33,7 @@ write_compose() {
   local ollama="$2"
 
   cat >"$COMPOSE_FILE" <<'YAML'
-name: docsort
+name: ${DOCSORT_PROJECT_NAME}
 
 services:
   web:
@@ -48,6 +53,8 @@ services:
       DOCSORT_MAX_UPLOAD_BYTES: "104857600"
     volumes:
       - docsort_storage:/rails/storage
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     labels:
       service: docsort
       role: web
@@ -107,15 +114,30 @@ YAML
 
 volumes:
   docsort_storage:
-    name: docsort_storage
+    name: ${DOCSORT_STORAGE_VOLUME}
 YAML
 
   if [[ "$ollama" == true ]]; then
-    printf '%s\n' '  ollama_data:' '    name: ollama_data' >>"$COMPOSE_FILE"
+    printf '%s\n' '  ollama_data:' '    name: ${DOCSORT_OLLAMA_VOLUME}' >>"$COMPOSE_FILE"
   fi
   if [[ "$mode" == domain ]]; then
     printf '%s\n' '  caddy_data:' '  caddy_config:' >>"$COMPOSE_FILE"
   fi
+}
+
+valid_name() {
+  [[ "$1" =~ ^[a-z0-9][a-z0-9_.-]*$ ]]
+}
+
+port_in_use() {
+  local port="$1"
+  docker ps --format '{{.Ports}}' 2>/dev/null | grep -Eq "(^|, |:)$port->" && return 0
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1 && return 0
+  elif command -v ss >/dev/null 2>&1; then
+    ss -ltn 2>/dev/null | awk '{print $4}' | grep -Eq "(^|:)$port$" && return 0
+  fi
+  return 1
 }
 
 install_command() {
@@ -128,6 +150,11 @@ install_command() {
   local port="${DOCSORT_PORT:-3000}"
   local image="${DOCSORT_IMAGE:-ghcr.io/timrauhut/docsort:stable}"
   local ollama="${DOCSORT_OLLAMA:-true}"
+  local ollama_host="${OLLAMA_HOST:-http://ollama:11434}"
+  local project_name="${DOCSORT_PROJECT_NAME:-docsort}"
+  local storage_volume="${DOCSORT_STORAGE_VOLUME:-docsort_storage}"
+  local ollama_volume="${DOCSORT_OLLAMA_VOLUME:-ollama_data}"
+  local adopt_existing_volume=false
   local admin_password
   admin_password="$(random_secret 24)"
 
@@ -138,6 +165,11 @@ install_command() {
       --port) port="${2:?missing port}"; shift 2 ;;
       --image) image="${2:?missing image}"; shift 2 ;;
       --no-ollama) ollama=false; shift ;;
+      --ollama-host) ollama=false; ollama_host="${2:?missing Ollama URL}"; shift 2 ;;
+      --project-name) project_name="${2:?missing project name}"; shift 2 ;;
+      --storage-volume) storage_volume="${2:?missing storage volume}"; shift 2 ;;
+      --ollama-volume) ollama_volume="${2:?missing Ollama volume}"; shift 2 ;;
+      --adopt-existing-volume) adopt_existing_volume=true; shift ;;
       --yes) shift ;;
       *) die "unknown install option: $1" ;;
     esac
@@ -145,12 +177,46 @@ install_command() {
 
   [[ "$mode" == lan || "$mode" == domain ]] || die "mode must be lan or domain"
   [[ "$ollama" == true || "$ollama" == false ]] || die "DOCSORT_OLLAMA must be true or false"
+  valid_name "$project_name" || die "invalid project name: $project_name"
+  valid_name "$storage_volume" || die "invalid storage volume name: $storage_volume"
+  valid_name "$ollama_volume" || die "invalid Ollama volume name: $ollama_volume"
+  [[ "$port" =~ ^[0-9]+$ ]] && ((port >= 1 && port <= 65535)) || die "invalid port: $port"
+  [[ -n "$INSTALL_ROOT" && "$INSTALL_ROOT" != / && "$INSTALL_ROOT" != "$HOME" ]] \
+    || die "unsafe installation root: $INSTALL_ROOT"
   if [[ "$mode" == domain ]]; then
     [[ "$domain" == *.* && "$domain" != *.local ]] || die "a registered public domain is required for automatic HTTPS"
+    port_in_use 80 && die "port 80 is already in use"
+    port_in_use 443 && die "port 443 is already in use"
+  elif port_in_use "$port"; then
+    die "port $port is already in use; choose another with --port"
   fi
 
+  [[ ! -e "$INSTALL_ROOT" ]] || die "$INSTALL_ROOT already exists; use 'docsort update' or choose DOCSORT_INSTALL_ROOT"
+  if docker volume inspect "$storage_volume" >/dev/null 2>&1 && [[ "$adopt_existing_volume" != true ]]; then
+    die "Docker volume $storage_volume already exists; choose --storage-volume or explicitly use --adopt-existing-volume"
+  fi
+
+  local storage_volume_existed=false ollama_volume_existed=false install_complete=false
+  PROJECT_NAME="$project_name"
+  docker volume inspect "$storage_volume" >/dev/null 2>&1 && storage_volume_existed=true
+  docker volume inspect "$ollama_volume" >/dev/null 2>&1 && ollama_volume_existed=true
+  install_rollback() {
+    local exit_code="${1:-$?}"
+    trap - ERR
+    if [[ "$install_complete" != true ]]; then
+      say "Installation failed; removing partial containers and configuration"
+      [[ -f "$COMPOSE_FILE" && -f "$ENV_FILE" ]] && compose down --remove-orphans >/dev/null 2>&1 || true
+      [[ "$storage_volume_existed" == true ]] || docker volume rm "$storage_volume" >/dev/null 2>&1 || true
+      if [[ "$ollama" == true && "$ollama_volume_existed" != true ]]; then
+        docker volume rm "$ollama_volume" >/dev/null 2>&1 || true
+      fi
+      rm -rf "$INSTALL_ROOT"
+    fi
+    return "$exit_code"
+  }
+  trap install_rollback ERR
+
   install -d -m 0700 "$INSTALL_ROOT"
-  [[ ! -e "$ENV_FILE" ]] || die "$ENV_FILE already exists; use 'docsort update'"
 
   umask 077
   cat >"$ENV_FILE" <<EOF
@@ -158,12 +224,17 @@ DOCSORT_IMAGE=$image
 DOCSORT_MODE=$mode
 DOCSORT_DOMAIN=$domain
 DOCSORT_PORT=$port
+DOCSORT_PROJECT_NAME=$project_name
+DOCSORT_STORAGE_VOLUME=$storage_volume
+DOCSORT_OLLAMA_VOLUME=$ollama_volume
 SECRET_KEY_BASE=$(random_secret 64)
+DOCSORT_SESSION_COOKIE=_${project_name//[^a-zA-Z0-9]/_}_session
 DOCSORT_ADMIN_USERNAME=admin
 DOCSORT_ADMIN_PASSWORD=$admin_password
+DOCSORT_FRESH_INSTALL=$([[ "$storage_volume_existed" == true ]] && echo false || echo true)
 DOCSORT_REQUIRE_INITIAL_PASSWORD_CHANGE=true
 WEBDAV_PASSWORD=$admin_password
-OLLAMA_HOST=http://ollama:11434
+OLLAMA_HOST=$ollama_host
 OLLAMA_MODEL=qwen2.5:3b
 OLLAMA_TIMEOUT=600
 ASSUME_SSL=$([[ "$mode" == domain ]] && echo true || echo false)
@@ -182,7 +253,11 @@ EOF
 
   if ! docker image inspect "$image" >/dev/null 2>&1; then
     say "Pulling $image"
-    docker pull "$image" || die "image unavailable; pass --image with a published multi-architecture image"
+    if ! docker pull "$image"; then
+      say "ERROR: image unavailable; pass --image with a published multi-architecture image" >&2
+      install_rollback 1
+      return 1
+    fi
   fi
 
   compose up --detach
@@ -195,11 +270,18 @@ EOF
   local attempts=0
   until compose exec --no-TTY web curl --fail --silent http://localhost/up >/dev/null 2>&1; do
     attempts=$((attempts + 1))
-    (( attempts < 60 )) || { compose logs --tail 100 web; die "application health check failed"; }
+    if ((attempts >= 60)); then
+      compose logs --tail 100 web
+      say "ERROR: application health check failed" >&2
+      install_rollback 1
+      return 1
+    fi
     sleep 2
   done
 
   say "Installed successfully"
+  install_complete=true
+  trap - ERR
   if [[ "$mode" == domain ]]; then
     say "Open https://$domain"
   else
@@ -211,15 +293,21 @@ EOF
     say "LAN mode uses HTTP; use a domain install for browser-trusted HTTPS"
   fi
   printf '\n'
-  say "INITIAL SIGN-IN CREDENTIALS"
-  say "Username: admin"
-  say "Password: $admin_password"
-  say "Save this password now. You can change it after signing in."
-  say "The initial credentials are also stored securely in $ENV_FILE (mode 600)."
-  if [[ "$(uname -s)" == Darwin ]]; then
-    say "Before changing the password, show them again with: $HOME/.local/bin/docsort credentials --show"
+  if [[ "$storage_volume_existed" == true ]]; then
+    say "EXISTING DATA ADOPTED"
+    say "Use the accounts and passwords already stored in $storage_volume."
+    say "The generated bootstrap password was not applied to existing users."
   else
-    say "Before changing the password, show them again with: sudo docsort credentials --show"
+    say "INITIAL SIGN-IN CREDENTIALS"
+    say "Username: admin"
+    say "Password: $admin_password"
+    say "Save this password now. You can change it after signing in."
+    say "The initial credentials are also stored securely in $ENV_FILE (mode 600)."
+    if [[ "$(uname -s)" == Darwin ]]; then
+      say "Before changing the password, show them again with: $HOME/.local/bin/docsort credentials --show"
+    else
+      say "Before changing the password, show them again with: sudo docsort credentials --show"
+    fi
   fi
   printf '\n'
 }
@@ -301,6 +389,10 @@ backup_status_command() {
 
 credentials_command() {
   [[ -f "$ENV_FILE" ]] || die "DocSort is not installed at $INSTALL_ROOT"
+  if [[ "$(sed -n 's/^DOCSORT_FRESH_INSTALL=//p' "$ENV_FILE")" == false ]]; then
+    say "This installation adopted existing data; use its existing account credentials."
+    return
+  fi
   if [[ "${1:-}" == --show ]]; then
     say "Initial admin username: $(sed -n 's/^DOCSORT_ADMIN_USERNAME=//p' "$ENV_FILE")"
     say "Initial admin password: $(sed -n 's/^DOCSORT_ADMIN_PASSWORD=//p' "$ENV_FILE")"
@@ -352,6 +444,8 @@ case "${1:-help}" in
 Usage: docsort COMMAND
 
   install [--domain NAME|--lan] [--port N] [--image IMAGE] [--no-ollama]
+          [--ollama-host URL] [--project-name NAME] [--storage-volume NAME]
+          [--ollama-volume NAME] [--adopt-existing-volume]
   update | status | logs | backup | backup-status | credentials | doctor
   uninstall --confirm
 EOF
