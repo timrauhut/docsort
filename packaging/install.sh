@@ -53,8 +53,31 @@ else
 fi
 
 install -d "$(dirname "$INSTALL_BIN")"
-install -m 0755 "$tmp_dir/docsort" "$INSTALL_BIN"
-"$INSTALL_BIN" install "$@"
+internal_bin="${INSTALL_BIN}.internal"
+paths_file="${INSTALL_BIN}.paths"
+install -m 0755 "$tmp_dir/docsort" "$internal_bin"
+"$internal_bin" install "$@"
+
+umask 077
+{
+  printf 'DOCSORT_INSTALL_ROOT=%s\n' "${DOCSORT_INSTALL_ROOT:-}"
+  printf 'DOCSORT_BACKUP_ROOT=%s\n' "${DOCSORT_BACKUP_ROOT:-}"
+} >"$paths_file"
+
+cat >"$INSTALL_BIN" <<'SH'
+#!/bin/sh
+set -eu
+paths_file="$0.paths"
+internal_bin="$0.internal"
+if [ -f "$paths_file" ]; then
+  install_root="$(sed -n 's/^DOCSORT_INSTALL_ROOT=//p' "$paths_file")"
+  backup_root="$(sed -n 's/^DOCSORT_BACKUP_ROOT=//p' "$paths_file")"
+  [ -z "$install_root" ] || export DOCSORT_INSTALL_ROOT="$install_root"
+  [ -z "$backup_root" ] || export DOCSORT_BACKUP_ROOT="$backup_root"
+fi
+exec "$internal_bin" "$@"
+SH
+chmod 0755 "$INSTALL_BIN"
 
 if [ "${DOCSORT_SKIP_BACKUPS:-false}" != true ]; then
   if [ -n "${DOCSORT_BACKUP_DIR:-}" ]; then
