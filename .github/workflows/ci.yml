@@ -6,6 +6,18 @@ on:
     branches: [ main ]
 
 jobs:
+  public_release_safety:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout complete history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Reject committed private topology
+        run: bin/check-public-release
+
   scan_ruby:
     runs-on: ubuntu-latest
 

@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+failures=0
+
+report_matches() {
+  local heading="$1"
+  shift
+  local matches
+  matches="$({ "$@"; } 2>/dev/null || true)"
+  if [[ -n "$matches" ]]; then
+    printf 'ERROR: %s\n%s\n' "$heading" "$matches" >&2
+    failures=1
+  fi
+}
+
+# Public examples may use 192.168.0.1. Any other committed RFC1918 address is
+# operator-specific and must live in ignored local configuration instead.
+report_matches \
+  "tracked files contain a private IPv4 address" \
+  git grep -I -n -E \
+  '(^|[^0-9])(10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3}|192\.168\.(0\.(0|[2-9]|[1-9][0-9]{1,2})|([1-9]|[1-9][0-9]{1,2})\.[0-9]{1,3}))([^0-9]|$)' \
+  -- .
+
+# These values were previously used locally. Inspect every reachable commit so
+# an old topology cannot be republished merely by tagging an earlier commit.
+retired_ip_pattern='192[.]168[.]178[.]158'
+retired_port_pattern='(^|[^0-9])22''22([^0-9]|$)'
+history_matches=""
+while IFS= read -r commit; do
+  match="$(git grep -I -n -E "$retired_ip_pattern|$retired_port_pattern" "$commit" -- . 2>/dev/null || true)"
+  if [[ -n "$match" ]]; then
+    history_matches+="$match"$'\n'
+  fi
+done < <(git rev-list HEAD --tags)
+
+if [[ -n "$history_matches" ]]; then
+  printf 'ERROR: reachable Git history contains retired private topology\n%s' "$history_matches" >&2
+  failures=1
+fi
+
+if ((failures)); then
+  exit 1
+fi
+
+echo "Public release check passed."
