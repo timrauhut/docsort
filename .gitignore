@@ -15,6 +15,9 @@
 /.env.deploy
 /config/deploy.env
 
+# Site-specific topology (real LAN IP / SSH) — keep local only
+/DEPLOY.local.md
+
 
 # Ignore all logfiles and tempfiles.
 /log/*

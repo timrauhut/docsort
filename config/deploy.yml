@@ -18,6 +18,7 @@ image: docsort
 # -----------------------------------------------------------------------------
 # Servers
 # -----------------------------------------------------------------------------
+# Replace 192.168.0.1 with your Pi's LAN IP before first deploy (do not commit real IPs).
 servers:
   web:
     - 192.168.0.1
@@ -118,7 +119,7 @@ builder:
   args:
     RUBY_VERSION: 4.0.6
 
-# SSH to Pi (custom port + non-root user with passwordless sudo)
+# SSH to Pi (edit user/port/key for your host; do not commit site-specific values)
 ssh:
   user: pi
   port: 22

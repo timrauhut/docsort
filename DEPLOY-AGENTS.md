@@ -6,13 +6,19 @@
 
 ---
 
-## 0. What “production” is (this repo’s real topology)
+## 0. What “production” is (topology is local-only)
 
-| Item | Value |
-|------|--------|
-| Host | `192.168.0.1` |
-| SSH | `pi@…` port **`22`**, key `~/.ssh/id_ed25519` |
-| App URL | `https://docsort.local` or `https://192.168.0.1` |
+**Do not commit real LAN IPs, custom SSH ports, or site-specific hosts.**  
+Git ships placeholders (`192.168.0.1`, SSH port `22`). Operators set real values in:
+
+1. `config/deploy.yml` (edit locally; prefer `git update-index --skip-worktree config/deploy.yml` so real IPs never re-commit), and/or  
+2. Shell env used by recipes below.
+
+| Item | Placeholder / convention |
+|------|---------------------------|
+| Host | Set `DOCSORT_HOST` (and the same IP in `config/deploy.yml`) |
+| SSH | `DOCSORT_SSH_USER` (default `pi`), `DOCSORT_SSH_PORT` (default `22`), key `~/.ssh/id_ed25519` |
+| App URL | `https://docsort.local` or `https://$DOCSORT_HOST` |
 | Health | `GET /up` → **200** |
 | Orchestration | **Kamal 2** (`config/deploy.yml`) |
 | Image arch | **arm64** (build on Apple Silicon / multi-arch) |
@@ -23,7 +29,7 @@ Containers on the Pi:
 
 - `docsort-web-<gitsha>` — Rails + Thruster + Solid Queue in Puma  
 - `docsort-ollama` — LLM accessory  
-- `kamal-proxy` — HTTPS front with a custom LAN certificate (hosts: IP, `docsort.local`, `docsort`)
+- `kamal-proxy` — HTTPS front with a custom LAN certificate (hosts: LAN IP, `docsort.local`, `docsort`)
 
 Data volumes: `docsort_storage` → `/rails/storage` (SQLite, blobs, sorted/, inbox/). Migrations run on container boot (`db:prepare` via entrypoint).
 
@@ -35,7 +41,13 @@ Run from repo root on the **operator Mac** (not on the Pi):
 
 ```bash
 export PATH="/opt/homebrew/opt/ruby/bin:/opt/homebrew/lib/ruby/gems/4.0.0/bin:$(pwd)/vendor/bundle/ruby/4.0.0/bin:$PATH"
-cd /Users/tr/Projects/docsort   # or the workspace path
+cd "$(git rev-parse --show-toplevel)"
+
+# 0) Site topology (local only — never commit these values)
+: "${DOCSORT_HOST:?Set DOCSORT_HOST to your Pi LAN IP}"
+export DOCSORT_SSH_USER="${DOCSORT_SSH_USER:-pi}"
+export DOCSORT_SSH_PORT="${DOCSORT_SSH_PORT:-22}"
+export DOCSORT_SSH_KEY="${DOCSORT_SSH_KEY:-$HOME/.ssh/id_ed25519}"
 
 # 1) Git: image tag = HEAD. Uncommitted deploy-critical code must be committed first.
 git status -sb
@@ -58,8 +70,8 @@ if [ -z "${DOCSORT_ADMIN_PASSWORD:-}" ] && [ -z "${WEBDAV_PASSWORD:-}" ]; then
 fi
 
 # 3) Pi online?
-ssh -p 22 -i "$HOME/.ssh/id_ed25519" -o BatchMode=yes -o ConnectTimeout=10 \
-  pi@192.168.0.1 "echo ok"
+ssh -p "$DOCSORT_SSH_PORT" -i "$DOCSORT_SSH_KEY" -o BatchMode=yes -o ConnectTimeout=10 \
+  "${DOCSORT_SSH_USER}@${DOCSORT_HOST}" "echo ok"
 ```
 
 If SSH fails (`Host is down` / timeout): **stop**. Tell the user the Pi is offline; do not start a 5‑minute build that cannot transfer.
@@ -74,7 +86,12 @@ This is the **proven** path used after logo/UI/OCR changes:
 
 ```bash
 export PATH="/opt/homebrew/opt/ruby/bin:/opt/homebrew/lib/ruby/gems/4.0.0/bin:$(pwd)/vendor/bundle/ruby/4.0.0/bin:$PATH"
-cd /Users/tr/Projects/docsort
+cd "$(git rev-parse --show-toplevel)"
+
+: "${DOCSORT_HOST:?Set DOCSORT_HOST to your Pi LAN IP}"
+export DOCSORT_SSH_USER="${DOCSORT_SSH_USER:-pi}"
+export DOCSORT_SSH_PORT="${DOCSORT_SSH_PORT:-22}"
+export DOCSORT_SSH_KEY="${DOCSORT_SSH_KEY:-$HOME/.ssh/id_ed25519}"
 
 PASS=$(cat /tmp/docsort-admin-password.txt 2>/dev/null || true)
 export DOCSORT_ADMIN_PASSWORD="${PASS:-changeme}"   # only if file missing; prefer real secret
@@ -94,12 +111,12 @@ docker pull "localhost:5555/docsort:${TAG}"
 
 # C) Transfer image to Pi (no registry pull on Pi)
 docker save "localhost:5555/docsort:${TAG}" | \
-  ssh -p 22 -i "$HOME/.ssh/id_ed25519" \
+  ssh -p "$DOCSORT_SSH_PORT" -i "$DOCSORT_SSH_KEY" \
     -o BatchMode=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=120 \
-    pi@192.168.0.1 "docker load"
+    "${DOCSORT_SSH_USER}@${DOCSORT_HOST}" "docker load"
 
 # D) Tag + preserve Rails master key / admin password on Pi
-ssh -p 22 -i "$HOME/.ssh/id_ed25519" -o BatchMode=yes pi@192.168.0.1 \
+ssh -p "$DOCSORT_SSH_PORT" -i "$DOCSORT_SSH_KEY" -o BatchMode=yes "${DOCSORT_SSH_USER}@${DOCSORT_HOST}" \
   "docker tag localhost:5555/docsort:${TAG} localhost:5555/docsort:latest
    KEY=\$(grep '^RAILS_MASTER_KEY=' .kamal/apps/docsort/env/roles/web.env 2>/dev/null | cut -d= -f2-)
    if [ -n \"\$KEY\" ]; then
@@ -114,7 +131,7 @@ bin/kamal deploy --skip-push
 # F) Verify
 DOCSORT_CA="$(mkcert -CAROOT)/rootCA.pem"
 curl --cacert "$DOCSORT_CA" -sS -m 10 -o /dev/null -w "up %{http_code}\n" https://docsort.local/up \
-  || curl --cacert "$DOCSORT_CA" -sS -m 10 -o /dev/null -w "up-ip %{http_code}\n" https://192.168.0.1/up
+  || curl --cacert "$DOCSORT_CA" -sS -m 10 -o /dev/null -w "up-ip %{http_code}\n" "https://${DOCSORT_HOST}/up"
 ```
 
 **Success criteria**
@@ -131,14 +148,15 @@ curl --cacert "$DOCSORT_CA" -sS -m 10 -o /dev/null -w "up %{http_code}\n" https:
 
 Only if Kamal has never been set up on the host:
 
-1. Fill `config/deploy.yml` (already set for this Pi).  
+1. Fill `config/deploy.yml` with your LAN IP / SSH settings (placeholders only in git).  
 2. `export DOCSORT_ADMIN_PASSWORD='…'` (strong; ≤72 bytes for bcrypt).  
-3. `bin/kamal-doctor`  
-4. `bin/kamal-setup` **or** manual: install Docker on Pi, `bin/kamal setup`, boot ollama accessory.  
-5. Pull model: `bin/kamal accessory exec ollama -- "ollama pull qwen2.5:3b"`
-6. Then use §2 for every later release.
+3. `DOCSORT_LAN_IP=$DOCSORT_HOST bin/setup-lan-tls` (cert SAN must include the real IP).  
+4. `bin/kamal-doctor`  
+5. `bin/kamal-setup` **or** manual: install Docker on Pi, `bin/kamal setup`, boot ollama accessory.  
+6. Pull model: `bin/kamal accessory exec ollama -- "ollama pull qwen2.5:3b"`
+7. Then use §2 for every later release.
 
-mDNS name `docsort.local` is published by systemd unit **`docsort-mdns.service`** on the Pi (`avahi-publish -a -R docsort.local 192.168.0.1`). Re-check if hostname resolution breaks after OS changes.
+mDNS name `docsort.local` is published by systemd unit **`docsort-mdns.service`** on the Pi (`avahi-publish -a -R docsort.local <YOUR_LAN_IP>`). Re-check if hostname resolution breaks after OS changes.
 
 ---
 
@@ -192,7 +210,8 @@ Schema migrations: included in the image; applied at boot. If migrate fails, con
 Quick Pi checks:
 
 ```bash
-ssh -p 22 -i ~/.ssh/id_ed25519 pi@192.168.0.1 \
+ssh -p "${DOCSORT_SSH_PORT:-22}" -i "${DOCSORT_SSH_KEY:-$HOME/.ssh/id_ed25519}" \
+  "${DOCSORT_SSH_USER:-pi}@${DOCSORT_HOST:?set DOCSORT_HOST}" \
   'docker ps --filter label=service=docsort --format "{{.Names}} {{.Status}}"'
 ```
 
@@ -202,10 +221,11 @@ ssh -p 22 -i ~/.ssh/id_ed25519 pi@192.168.0.1 \
 
 1. **Do not** run `bin/kamal deploy` **without** `--skip-push` after a manual `docker load` unless the Pi can actually pull `localhost:5555` from the Mac (it usually cannot).  
 2. **Do not** `export DOCSORT_ADMIN_PASSWORD=changeme` on a real re-seed production env unless the user wants that. Prefer the password already on the Pi’s `web.env`.  
-3. **Do not** force-push or rewrite published history to “fix” tags.  
-4. **Do not** deploy mid-refactor without the user asking.  
-5. **Do not** drop the storage volume.  
-6. Prefer **one** deploy after a batch of commits, not one deploy per typo, unless the user wants each change live.
+3. **Do not** force-push or rewrite published history unless the user explicitly asked (e.g. secret scrub).  
+4. **Do not** commit real LAN IPs, custom SSH ports, or production passwords into git.  
+5. **Do not** deploy mid-refactor without the user asking.  
+6. **Do not** drop the storage volume.  
+7. Prefer **one** deploy after a batch of commits, not one deploy per typo, unless the user wants each change live.
 
 ---
 

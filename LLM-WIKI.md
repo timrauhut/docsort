@@ -17,7 +17,7 @@
 | **What** | Local-first multi-user document archive |
 | **Where** | Workspace path (macOS dev) · Raspberry Pi LAN prod |
 | **Stack** | Rails 8.1 · Ruby 4.0 · SQLite · Active Storage · Solid Queue · Tailwind · Stimulus · Turbo · Ollama · Kamal · Docker |
-| **Prod URL** | **HTTPS** `https://docsort.local` or `https://192.168.0.1` |
+| **Prod URL** | **HTTPS** `https://docsort.local` or `https://<YOUR_LAN_IP>` |
 | **Health** | `GET /up` → 200 (HTTP allowed for probe; app assumes TLS) |
 
 ---
@@ -246,13 +246,15 @@ Ruby must be Homebrew 4.x, not system `/usr/bin/ruby`.
 
 ## 10. Production (Raspberry Pi)
 
+Host/SSH values are **local operator config** — never commit real LAN IPs or custom ports. Fill `config/deploy.yml` (placeholders ship as `192.168.0.1` / port `22`) or export `DOCSORT_HOST` / `DOCSORT_SSH_*` for agent recipes.
+
 | | |
 |--|--|
-| Host | `192.168.0.1` |
-| SSH | user `pi`, port **22**, key `~/.ssh/id_ed25519` |
+| Host | `192.168.0.1` placeholder → your Pi LAN IP |
+| SSH | user `pi`, port **22** (override if needed), key `~/.ssh/id_ed25519` |
 | App | Kamal web + `kamal-proxy` (TLS) |
 | Names | mDNS **`docsort.local`** (`docsort-mdns.service` + avahi-publish) |
-| Proxy hosts | IP, `docsort.local`, bare `docsort` |
+| Proxy hosts | LAN IP, `docsort.local`, bare `docsort` |
 | Volumes | `docsort_storage` → `/rails/storage`; `ollama_data` |
 | Accessory | `docsort-ollama` |
 | Model | **`qwen2.5:3b`** |

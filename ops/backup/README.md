@@ -10,9 +10,12 @@ The backup pre-copies documents while DocSort stays online, pauses the web conta
 ## Install on the Pi
 
 ```bash
-scp -P 22 -r ops/backup pi@192.168.0.1:/tmp/docsort-backup
-ssh -p 22 pi@192.168.0.1 'sudo /tmp/docsort-backup/install'
-ssh -p 22 pi@192.168.0.1 'sudo systemctl start docsort-backup.service'
+# Set your host once (do not commit real values):
+#   export DOCSORT_HOST=192.168.0.1 DOCSORT_SSH_PORT=22 DOCSORT_SSH_USER=pi
+
+scp -P "${DOCSORT_SSH_PORT:-22}" -r ops/backup "${DOCSORT_SSH_USER:-pi}@${DOCSORT_HOST:?set DOCSORT_HOST}:/tmp/docsort-backup"
+ssh -p "${DOCSORT_SSH_PORT:-22}" "${DOCSORT_SSH_USER:-pi}@${DOCSORT_HOST}" 'sudo /tmp/docsort-backup/install'
+ssh -p "${DOCSORT_SSH_PORT:-22}" "${DOCSORT_SSH_USER:-pi}@${DOCSORT_HOST}" 'sudo systemctl start docsort-backup.service'
 ```
 
 The installer creates `/etc/docsort-backup-password`. Copy that password to an offline password manager. Losing it makes both repositories unrecoverable. Never commit or print it in logs.

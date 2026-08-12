@@ -8,13 +8,19 @@ if ! command -v mkcert >/dev/null 2>&1; then
   exit 1
 fi
 
+# Optional: DOCSORT_LAN_IP=x.x.x.x  (defaults to placeholder 192.168.0.1)
+LAN_IP="${DOCSORT_LAN_IP:-192.168.0.1}"
+
 mkdir -p config/tls
 mkcert \
   -cert-file config/tls/docsort.pem \
   -key-file config/tls/docsort-key.pem \
-  docsort.local docsort 192.168.0.1 localhost 127.0.0.1 ::1
+  docsort.local docsort "$LAN_IP" localhost 127.0.0.1 ::1
 chmod 600 config/tls/docsort-key.pem
 
-echo "LAN TLS certificate ready: config/tls/docsort.pem"
+echo "LAN TLS certificate ready: config/tls/docsort.pem (SAN includes $LAN_IP)"
 echo "Root CA for other devices: $(mkcert -CAROOT)/rootCA.pem"
 echo "If this Mac does not trust the CA yet, run: mkcert -install"
+if [ "$LAN_IP" = "192.168.0.1" ]; then
+  echo "Tip: re-run with DOCSORT_LAN_IP=<your-pi-ip> so the cert matches your host."
+fi
