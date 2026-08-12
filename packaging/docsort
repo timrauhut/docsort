@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="0.5.0"
+VERSION="0.5.1"
 if [[ "$(uname -s)" == Darwin ]]; then
   DEFAULT_INSTALL_ROOT="$HOME/Library/Application Support/DocSort"
   DEFAULT_BACKUP_ROOT="$DEFAULT_INSTALL_ROOT/backups"
