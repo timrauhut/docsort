@@ -145,15 +145,16 @@ body.docsort-body::before {
   position: sticky;
   top: 0;
   z-index: 40;
-  backdrop-filter: blur(14px) saturate(1.1);
-  background: rgb(215 215 46 / 55%);
-  border-bottom: 1px solid rgb(35 30 30 / 12%);
+  backdrop-filter: blur(18px) saturate(1.08);
+  background: rgb(250 249 243 / 92%);
+  border-bottom: 1px solid rgb(35 30 30 / 10%);
+  box-shadow: 0 0.35rem 1.4rem rgb(35 30 30 / 5%);
 }
 
 .site-header__inner {
   max-width: 72rem;
   margin: 0 auto;
-  padding: 0.85rem 1.25rem;
+  padding: 0.68rem 1.25rem 0.72rem;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -164,23 +165,24 @@ body.docsort-body::before {
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.7rem;
   text-decoration: none;
   color: inherit;
   min-width: max-content;
 }
 
 .brand__logo {
-  width: 3rem;
-  height: 3rem;
+  width: 10.5rem;
+  height: auto;
   display: block;
   flex-shrink: 0;
-  filter: drop-shadow(0 0.2rem 0.2rem rgb(35 30 30 / 18%));
 }
 
 .brand__copy {
   display: grid;
   min-width: 0;
+  padding-left: 0.7rem;
+  border-left: 1px solid rgb(35 30 30 / 18%);
 }
 
 .brand__mark {
@@ -377,9 +379,11 @@ button.nav-pill.user-menu__out:focus-visible {
 }
 
 .brand__tag {
-  font-size: 0.72rem;
-  color: var(--ink-faint);
-  margin-top: 0.1rem;
+  max-width: 7.5rem;
+  font-size: 0.66rem;
+  line-height: 1.25;
+  color: var(--ink-muted);
+  letter-spacing: 0.015em;
 }
 
 .nav-pills {
