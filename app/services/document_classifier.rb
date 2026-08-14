@@ -18,7 +18,7 @@ class DocumentClassifier
 
   def call(text: nil)
     text = text.presence || TextExtractor.new(@document).call
-    categories = Category.ordered.to_a
+    categories = Category.visible_to(@document.user).ordered.to_a
     issuer_info = IssuerDetector.new(@document, text: text).call
 
     if categories.empty?
@@ -200,6 +200,7 @@ class DocumentClassifier
 
     issuer_category = IssuerCategoryResolver.new(
       result.issuer,
+      user: @document.user,
       confidence: result.issuer_confidence
     ).call
 

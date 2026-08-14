@@ -4,6 +4,12 @@ puts "Seeding DocSort…"
 admin_username = Rails.application.config.x.admin.username.to_s.strip.presence || "admin"
 # bcrypt / has_secure_password max is 72 bytes
 admin_password = Rails.application.config.x.admin.password.to_s.byteslice(0, 72).to_s
+using_default_password = User.weak_bootstrap_password?(admin_password)
+
+if Rails.env.production? && using_default_password
+  raise "Refusing to seed a default admin password in production. Set DOCSORT_ADMIN_PASSWORD."
+end
+
 admin_password = "changeme" if admin_password.blank?
 
 if User.none?
@@ -12,12 +18,12 @@ if User.none?
     password: admin_password,
     password_confirmation: admin_password,
     admin: true,
-    password_change_required: Rails.application.config.x.admin.require_password_change
+    password_change_required: using_default_password || Rails.application.config.x.admin.require_password_change
   )
   admin.ensure_storage!
   puts "  ✓ admin user “#{admin.username}” (web + WebDAV)"
-  if admin_password == "changeme"
-    puts "  ! default password “changeme” — change it after first login"
+  if using_default_password
+    puts "  ! default password — change it after first login"
   end
 else
   puts "  · users present (#{User.count}) — skip admin create"

@@ -22,6 +22,16 @@ class WebdavControllerTest < ActionDispatch::IntegrationTest
     assert_response :upgrade_required
   end
 
+  test "refuses WebDAV until the installation password is replaced" do
+    Rails.application.config.x.webdav.allow_insecure = true
+    users(:alice).update!(password_change_required: true)
+
+    get "/webdav", headers: authorization_header
+
+    assert_response :forbidden
+    assert_match(/Password change required/, response.body)
+  end
+
   test "escapes filenames in directory HTML" do
     Rails.application.config.x.webdav.allow_insecure = true
     users(:alice).ensure_storage!

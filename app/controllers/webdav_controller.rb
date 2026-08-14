@@ -6,9 +6,11 @@ class WebdavController < ApplicationController
 
   skip_before_action :require_login
   skip_before_action :require_secure_transport
+  skip_before_action :require_password_change
   skip_before_action :verify_authenticity_token, raise: false
   before_action :require_secure_webdav
   before_action :authenticate_webdav_user
+  before_action :reject_webdav_until_password_changed
   before_action :set_paths
 
   def handle
@@ -40,6 +42,12 @@ class WebdavController < ApplicationController
         false
       end
     end
+  end
+
+  def reject_webdav_until_password_changed
+    return unless @webdav_user&.password_change_required?
+
+    render plain: "Password change required. Sign in on the web and set a new password.", status: :forbidden
   end
 
   def require_secure_webdav

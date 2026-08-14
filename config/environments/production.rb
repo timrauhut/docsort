@@ -1,4 +1,6 @@
 require "active_support/core_ext/integer/time"
+require "ipaddr"
+require "socket"
 
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
@@ -79,12 +81,22 @@ Rails.application.configure do
   # Only use :id for inspections in production.
   config.active_record.attributes_for_inspect = [ :id ]
 
-  # Enable DNS rebinding protection and other `Host` header attacks.
-  # config.hosts = [
-  #   "example.com",     # Allow requests from example.com
-  #   /.*\.example\.com/ # Allow requests from subdomains like `www.example.com`
-  # ]
-  #
-  # Skip DNS rebinding protection for the default health check endpoint.
-  # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+  # LAN-only: named hosts plus RFC1918/loopback. Public Host headers (DNS rebinding)
+  # are rejected. Extra names via DOCSORT_ALLOWED_HOSTS / DOCSORT_HOST.
+  private_network = ->(address, prefix) { IPAddr.new(address, Socket::AF_INET).mask(prefix) }
+  config.hosts = [
+    "docsort.local",
+    "docsort",
+    "localhost",
+    private_network.call(0x7f000000, 8),
+    private_network.call(0x0a000000, 8),
+    private_network.call(0xac100000, 12),
+    private_network.call(0xc0a80000, 16)
+  ]
+  ENV.fetch("DOCSORT_ALLOWED_HOSTS", "").split(",").map(&:strip).reject(&:blank?).each do |host|
+    config.hosts << host
+  end
+  config.hosts << ENV["DOCSORT_HOST"].strip if ENV["DOCSORT_HOST"].present?
+
+  config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
 end

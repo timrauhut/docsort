@@ -3,7 +3,7 @@ class CategoriesController < ApplicationController
   before_action :set_category, only: %i[show edit update destroy]
 
   def index
-    @categories = Category.ordered
+    @categories = catalog_categories
     @document_counts = current_user.documents.group(:category_id).count
   end
 
@@ -49,7 +49,11 @@ class CategoriesController < ApplicationController
   private
 
   def set_category
-    @category = Category.find(params[:id])
+    @category = catalog_categories.find(params[:id])
+  end
+
+  def catalog_categories
+    current_user.assignable_categories
   end
 
   def category_params

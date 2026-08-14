@@ -3,8 +3,11 @@
 class IssuerCategoryResolver
   MIN_KEYWORD_LENGTH = 4
 
-  def initialize(issuer_name, confidence: 0.0, auto_create: nil)
+  def initialize(issuer_name, user:, confidence: 0.0, auto_create: nil)
+    raise ArgumentError, "user required" if user.blank?
+
     @issuer_name = issuer_name.to_s.strip
+    @user = user
     @confidence = confidence.to_f
     @auto_create = auto_create.nil? ? Rails.application.config.x.auto_create_issuer_categories : auto_create
   end
@@ -19,12 +22,13 @@ class IssuerCategoryResolver
   private
 
   def find_existing
+    scope = Category.visible_to(@user)
     slug = @issuer_name.parameterize
-    by_slug = Category.find_by(slug: slug) || Category.find_by(slug: "issuer-#{slug}")
+    by_slug = scope.find_by(slug: slug) || scope.find_by(slug: "issuer-#{slug}")
     return by_slug if by_slug
 
     needle = @issuer_name.downcase
-    Category.ordered.find do |category|
+    scope.ordered.find do |category|
       name = category.name.to_s.downcase.strip
       next true if name == needle
       next true if name.parameterize == slug
@@ -45,7 +49,7 @@ class IssuerCategoryResolver
     slug = "issuer-#{@issuer_name.parameterize}"
     path = File.join("issuers", @issuer_name.parameterize)
 
-    category = Category.find_or_initialize_by(slug: slug)
+    category = Category.find_or_initialize_by(slug: slug, user: @user)
     if category.new_record?
       category.assign_attributes(
         name: @issuer_name.truncate(60),
@@ -57,7 +61,7 @@ class IssuerCategoryResolver
         position: 500
       )
       category.save!
-      category.ensure_directory!
+      category.ensure_directory!(@user.sorted_root)
       Rails.logger.info("IssuerCategoryResolver: created category #{category.slug}")
     end
     category

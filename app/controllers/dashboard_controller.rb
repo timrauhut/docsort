@@ -6,10 +6,10 @@ class DashboardController < ApplicationController
       pending: scope.pending.count,
       classified: scope.classified.count,
       failed: scope.failed.count,
-      categories: Category.count
+      categories: current_user.assignable_categories.count
     }
     @recent = scope.includes(:category).recent.limit(12)
-    @categories = Category.ordered
+    @categories = current_user.assignable_categories
     @category_counts = scope.group(:category_id).count
     @ollama = ollama_status
   end

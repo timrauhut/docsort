@@ -2,7 +2,7 @@ class DocumentsController < ApplicationController
   before_action :set_document, only: %i[show edit update destroy download reclassify assign create_issuer_category]
 
   def index
-    @categories = Category.ordered
+    @categories = current_user.assignable_categories
     @documents = filtered_documents.limit(200)
     scope = current_user.documents
     @stats = {
@@ -19,11 +19,12 @@ class DocumentsController < ApplicationController
   end
 
   def show
+    @categories = current_user.assignable_categories
   end
 
   def new
     @document = current_user.documents.new
-    @categories = Category.ordered
+    @categories = current_user.assignable_categories
   end
 
   def create
@@ -59,7 +60,7 @@ class DocumentsController < ApplicationController
   end
 
   def edit
-    @categories = Category.ordered
+    @categories = current_user.assignable_categories
   end
 
   def update
@@ -74,7 +75,7 @@ class DocumentsController < ApplicationController
       end
       redirect_to @document, notice: "Document updated."
     else
-      @categories = Category.ordered
+      @categories = current_user.assignable_categories
       render :edit, status: :unprocessable_entity
     end
   end
@@ -85,10 +86,24 @@ class DocumentsController < ApplicationController
   end
 
   def download
-    if @document.file.attached?
-      redirect_to rails_blob_path(@document.file, disposition: "attachment")
-    else
+    unless @document.file.attached?
       redirect_to @document, alert: "No file attached."
+      return
+    end
+
+    blob = @document.file.blob
+    type = @document.content_type.presence || blob.content_type.presence || "application/octet-stream"
+    filename = @document.original_filename.presence || blob.filename.to_s
+
+    if blob.service.respond_to?(:path_for)
+      send_file blob.service.path_for(blob.key),
+        filename: filename,
+        type: type,
+        disposition: :attachment
+    else
+      blob.open do |file|
+        send_data file.read, filename: filename, type: type, disposition: :attachment
+      end
     end
   end
 
@@ -98,7 +113,7 @@ class DocumentsController < ApplicationController
   end
 
   def assign
-    category = Category.find(params[:category_id])
+    category = current_user.assignable_categories.find(params[:category_id])
     @document.update!(
       category: category,
       status: "classified",
@@ -119,6 +134,7 @@ class DocumentsController < ApplicationController
 
     category = IssuerCategoryResolver.new(
       @document.issuer,
+      user: current_user,
       confidence: [ @document.issuer_confidence.to_f, 0.9 ].max,
       auto_create: true
     ).call
@@ -153,6 +169,10 @@ class DocumentsController < ApplicationController
   end
 
   def document_params
-    params.require(:document).permit(:title, :summary, :tags, :category_id, :status)
+    permitted = params.require(:document).permit(:title, :summary, :tags, :category_id, :status)
+    if permitted[:category_id].present? && current_user.assignable_categories.where(id: permitted[:category_id]).none?
+      permitted[:category_id] = @document.category_id
+    end
+    permitted
   end
 end

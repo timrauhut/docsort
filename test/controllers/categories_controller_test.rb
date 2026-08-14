@@ -14,6 +14,22 @@ class CategoriesControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
   end
 
+  test "users do not see another users issuer category" do
+    foreign = Category.create!(
+      name: "Secret Bank",
+      slug: "issuer-secret-bank",
+      directory_path: "issuers/secret-bank",
+      user: users(:alice)
+    )
+    get categories_path
+
+    assert_response :success
+    refute_includes response.body, "Secret Bank"
+
+    get category_path(foreign)
+    assert_response :not_found
+  end
+
   test "rejects a directory path outside the users sorted root" do
     assert_no_difference("Category.count") do
       post categories_path, params: {

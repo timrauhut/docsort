@@ -9,6 +9,14 @@ class SecureTransportTest < ActionDispatch::IntegrationTest
     assert_includes response.headers["Content-Security-Policy"], "object-src 'none'"
   end
 
+  test "does not expose Active Storage direct upload or blob routes" do
+    post "/rails/active_storage/direct_uploads"
+    assert_response :not_found
+
+    get "/rails/active_storage/blobs/redirect/not-a-real-id/file.pdf"
+    assert_response :not_found
+  end
+
   test "refuses login over insecure transport when production protection is enabled" do
     previous = Rails.application.config.x.allow_insecure_auth
     Rails.application.config.x.allow_insecure_auth = false

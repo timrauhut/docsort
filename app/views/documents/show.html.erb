@@ -48,7 +48,7 @@
           Detected as the company or brand that issued this document.
           You can turn it into its own filing category under <span class="mono">issuers/</span>.
         </p>
-        <% issuer_cat = Category.find_by(slug: "issuer-#{@document.issuer.parameterize}") %>
+        <% issuer_cat = Category.issuer_for(current_user, @document.issuer) %>
         <% if issuer_cat && @document.category_id == issuer_cat.id %>
           <p class="list-meta" style="margin-top:0.75rem">Already filed under category “<%= issuer_cat.name %>”.</p>
         <% else %>
@@ -125,7 +125,7 @@
       <p class="eyebrow">File</p>
       <h2 class="display" style="font-size:1.1rem;margin:0.35rem 0 0.75rem">Move to category</h2>
       <%= form_with url: assign_document_path(@document), method: :post, class: "field-stack" do %>
-        <%= select_tag :category_id, options_from_collection_for_select(Category.ordered, :id, :name, @document.category_id) %>
+        <%= select_tag :category_id, options_from_collection_for_select(@categories, :id, :name, @document.category_id) %>
         <%= submit_tag "Assign & sort", class: "btn btn-dark btn-block" %>
       <% end %>
     </section>

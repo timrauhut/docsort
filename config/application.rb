@@ -56,11 +56,16 @@ module Docsort
     config.x.admin.username = ENV.fetch("DOCSORT_ADMIN_USERNAME", "admin").to_s.strip
     config.x.admin.password = ENV.fetch(
       "DOCSORT_ADMIN_PASSWORD",
-      ENV.fetch("WEBDAV_PASSWORD", "changeme")
+      ENV.fetch("WEBDAV_PASSWORD", Rails.env.production? ? "" : "changeme")
     ).to_s.strip
     config.x.admin.require_password_change = ActiveModel::Type::Boolean.new.cast(
-      ENV.fetch("DOCSORT_REQUIRE_INITIAL_PASSWORD_CHANGE", "false")
+      ENV.fetch("DOCSORT_REQUIRE_INITIAL_PASSWORD_CHANGE", Rails.env.production? ? "true" : "false")
     )
+
+    # Downloads go through DocumentsController. Do not expose public blob or
+    # direct-upload routes (unauthenticated Active Storage controllers).
+    config.active_storage.draw_routes = false
+    config.active_storage.urls_expire_in = 5.minutes
 
 
     # When an issuer/brand is detected and no type category fits well,

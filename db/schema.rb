@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_11_170000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_14_120000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -50,7 +50,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_11_170000) do
     t.integer "position", default: 0, null: false
     t.string "slug", null: false
     t.datetime "updated_at", null: false
-    t.index ["slug"], name: "index_categories_on_slug", unique: true
+    t.integer "user_id"
+    t.index ["slug"], name: "index_categories_on_slug", unique: true, where: "user_id IS NULL"
+    t.index ["user_id", "slug"], name: "index_categories_on_user_id_and_slug", unique: true, where: "user_id IS NOT NULL"
+    t.index ["user_id"], name: "index_categories_on_user_id"
   end
 
   create_table "classification_rules", force: :cascade do |t|
@@ -107,6 +110,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_11_170000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "categories", "users"
   add_foreign_key "classification_rules", "categories"
   add_foreign_key "documents", "categories"
   add_foreign_key "documents", "users"

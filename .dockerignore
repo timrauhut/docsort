@@ -15,6 +15,7 @@
 # Ignore all default key files.
 /config/master.key
 /config/credentials/*.key
+/config/tls/
 
 # Ignore all logfiles and tempfiles.
 /log/*
