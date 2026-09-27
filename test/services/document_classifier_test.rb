@@ -110,6 +110,42 @@ class DocumentClassifierTest < ActiveSupport::TestCase
     assert_includes request[:schema][:properties][:category_slug][:enum], @invoices.slug
   end
 
+  test "issuer category names cannot leak into predictions without source evidence" do
+    brand = Category.create!(name: "Deutsche Bahn AG", slug: "issuer-deutsche-bahn-ag",
+      directory_path: "issuers/deutsche-bahn", keywords: "Deutsche Bahn AG", user: users(:admin))
+    document = Document.new(user: users(:admin), original_filename: "scan.pdf")
+    calls = []
+    client = Object.new
+    client.define_singleton_method(:chat) do |**args|
+      calls << args
+      { "category_slug" => "invoices", "confidence" => 0.9,
+        "summary" => "A power of attorney for tax matters.", "issuer" => "Deutsche Bahn AG", "issuer_confidence" => 1 }
+    end
+    result = DocumentClassifier.new(document, ollama: client).send(:classify_with_ollama,
+      "Vollmacht in Steuersachen", [ @invoices, brand ], { issuer: nil })
+    assert_nil result.issuer
+    assert_equal 0, result.issuer_confidence
+    assert_equal "", result.raw["issuer"]
+    refute_includes calls.first[:schema][:properties][:category_slug][:enum], brand.slug
+    refute_includes calls.first[:user], "Deutsche Bahn"
+  end
+
+  test "source-supported issuer categories remain available" do
+    brand = Category.create!(name: "Calumet", slug: "issuer-calumet",
+      directory_path: "issuers/calumet", keywords: "Calumet", user: users(:admin))
+    document = Document.new(user: users(:admin), original_filename: "scan.pdf")
+    client = Object.new
+    client.define_singleton_method(:chat) do |**args|
+      raise "Brand missing from schema" unless args[:schema][:properties][:category_slug][:enum].include?(brand.slug)
+      { "category_slug" => brand.slug, "confidence" => 0.9,
+        "summary" => "A purchase receipt.", "issuer" => "Calumet GmbH", "issuer_confidence" => 0.9 }
+    end
+    result = DocumentClassifier.new(document, ollama: client).send(:classify_with_ollama,
+      "Calumet Photo Video receipt", [ @invoices, brand ], { issuer: nil })
+    assert_equal "Calumet GmbH", result.issuer
+    assert_equal brand, result.category
+  end
+
   private
 
   def classify_with_responses(summary, recovery = nil, text: "Filename: statement.txt\n\n--- Page 1 ---\nPayment of 42 euros is due Friday.")

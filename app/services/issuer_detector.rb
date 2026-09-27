@@ -22,6 +22,17 @@ class IssuerDetector
      reference\s*no|kundennummer|account\s+number|www\.[a-z0-9.-]+\.[a-z]{2,})
   /ix
 
+  # Match issuer names against source text, never against the category catalog.
+  # Ignore common legal suffixes and punctuation/spacing (including OCR spacing).
+  def self.supported?(name, text)
+    words = name.to_s.parameterize(separator: " ").split
+    words.pop while words.last&.in?(%w[ag gmbh se kg ohg ug inc corp llc ltd limited])
+    needle = words.join
+    return false if needle.length < 4
+
+    text.to_s.parameterize(separator: "").include?(needle)
+  end
+
   def initialize(document, text: nil)
     @document = document
     @text = text.to_s

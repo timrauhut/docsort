@@ -119,7 +119,7 @@ Order:
 Plus:
 
 - **IssuerDetector** (heuristics)  
-- Model may return `issuer` / `issuer_confidence`  
+- Model may return `issuer` / `issuer_confidence`; issuer names must match source text after normalization. Unsupported issuer categories are excluded from the model catalog to prevent category names contaminating issuer predictions.
 - **IssuerCategoryResolver** may promote weak/unsorted → `issuers/<slug>/` category  
 
 Ollama client caps `num_predict` (short JSON) and explicitly sets an 8192-token context. Classification budgets the complete serialized prompt conservatively by UTF-8 bytes, sampling document head/tail to fit. Schema-constrained JSON requires a summary and category; invalid classification responses fall back to keywords. Missing summaries get one bounded retry, then a labeled document excerpt. Truncated output and malformed/non-object JSON raise client errors.
