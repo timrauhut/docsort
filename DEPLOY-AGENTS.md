@@ -6,6 +6,20 @@
 
 ---
 
+## Installer-managed Compose deployments
+
+Check the running container labels before deploying. An installation migrated to the
+installer uses Compose, not Kamal; see [packaging/README.md](packaging/README.md).
+Do not start a second Kamal stack alongside it. Build the committed release for
+ARM64 and transfer it with Docker save/load as below, then use its existing Compose
+project, configuration and environment file to replace only the web service.
+Take a verified `docsort backup` first, retain the previous image and environment
+file for rollback, pin `DOCSORT_IMAGE` to the release, and use
+`compose up --detach --no-deps --pull never web`. Verify container health,
+HTTPS `/up`, the deployed commit and Ollama connectivity. On failure restore the
+old image setting and recreate the web service. Never print or overwrite unrelated
+secrets in the environment file.
+
 ## 0. What “production” is (topology is local-only)
 
 **Do not commit real LAN IPs, custom SSH ports, or site-specific hosts.**  

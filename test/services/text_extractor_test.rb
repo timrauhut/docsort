@@ -79,7 +79,7 @@ class TextExtractorTest < ActiveSupport::TestCase
     )
     long = "A" * 8_000 + "MIDDLE_MARKER" + "B" * 8_000
     # Force small limit via method behavior: length > 12000 default
-    sample = classifier.send(:text_for_model, long)
+    sample = JSON.parse(classifier.send(:model_payload, "Classify this document", {}, long)).fetch("document_text")
     assert sample.length <= 12_000 + 20
     assert_includes sample, "[...]"
     assert sample.start_with?("A")

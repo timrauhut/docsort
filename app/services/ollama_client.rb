@@ -29,7 +29,16 @@ class OllamaClient
     raise Unavailable, e.message
   end
 
-  def chat(system:, user:, format_json: true, num_predict: 384)
+  CONTEXT_SIZE = 8192
+  # UTF-8 bytes are a conservative token upper bound; reserve chat-template space.
+  def self.input_byte_budget(num_predict: 384)
+    CONTEXT_SIZE - num_predict - 512
+  end
+
+  def chat(system:, user:, format_json: true, num_predict: 384, schema: nil)
+    if system.bytesize + user.bytesize > self.class.input_byte_budget(num_predict: num_predict)
+      raise Error, "Model prompt exceeds safe context budget"
+    end
     body = {
       model: @model,
       stream: false,
@@ -40,10 +49,11 @@ class OllamaClient
       # Keep responses short — Pi/1B models otherwise ramble for minutes
       options: {
         num_predict: num_predict,
+        num_ctx: CONTEXT_SIZE,
         temperature: 0.1
       }
     }
-    body[:format] = "json" if format_json
+    body[:format] = schema || "json" if format_json
 
     response = connection.post("/api/chat") do |req|
       req.headers["Content-Type"] = "application/json"
@@ -53,6 +63,8 @@ class OllamaClient
     unless response.success?
       raise Error, "Ollama error #{response.status}: #{response.body}"
     end
+
+    raise Error, "Model response exceeded output budget" if response.body["done_reason"] == "length"
 
     content = response.body.dig("message", "content").to_s
     format_json ? parse_json(content) : content
@@ -72,13 +84,13 @@ class OllamaClient
   end
 
   def parse_json(content)
-    JSON.parse(content)
+    candidate = content.strip
+    candidate = candidate[/\{[\s\S]*\}/] || candidate unless candidate.start_with?("{", "[")
+    parsed = JSON.parse(candidate)
+    raise Error, "Model JSON must be an object" unless parsed.is_a?(Hash)
+
+    parsed
   rescue JSON::ParserError
-    # Models sometimes wrap JSON in markdown fences
-    if content =~ /\{[\s\S]*\}/
-      JSON.parse(Regexp.last_match[0])
-    else
-      raise Error, "Could not parse model JSON: #{content.truncate(200)}"
-    end
+    raise Error, "Could not parse model JSON"
   end
 end
