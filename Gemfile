@@ -41,7 +41,7 @@ gem "thruster", require: false
 gem "image_processing", "~> 1.2"
 
 # Document text extraction
-gem "pdf-reader", "~> 2.12"
+gem "pdf-reader", "~> 2.16"
 
 # HTTP client for Ollama local LLM
 gem "faraday", "~> 2.12"
