@@ -44,7 +44,7 @@ gem "image_processing", "~> 1.2"
 gem "pdf-reader", "~> 2.12"
 
 # HTTP client for Ollama local LLM
-gem "faraday", "~> 2.12"
+gem "faraday", "~> 2.14"
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
